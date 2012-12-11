@@ -7,7 +7,7 @@ per document, or alternatively one cloud to represent all the
 documents written in each year, or one cloud to represent
 each track of an academic conference, etc. 
 
-![Word Storm](https://github.com/quimcastella/WordStorm/examples/images/complex.png)
+![Word Storm](https://raw.github.com/quimcastella/WordStorm/master/examples/images/complex.png)
 
 In order to make the clouds easy to compare, 
 words that appear in different clouds are placed in similar locations
