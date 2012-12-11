@@ -1,3 +1,5 @@
+## Word Storm
+
 The objective of this project is to generate **word storms**, 
 multiples of word clouds to afford visual comparison of groups of documents.
 Just as a storm is a group of clouds, a word storm is a group of
@@ -17,12 +19,12 @@ In this way, similar documents are be represented by visually similar clouds.
 ## Create a Word Storm
 
 This project allows you to create word storms from your texts,
-giving you options to personalize their apperance, 
-so you can create beatiful figures to analyze your documents.
+giving you options to personalize their appearance, 
+so you can create beautiful figures to analyze your documents.
 
 The algorithms to generate the storm are build on top of **WordCram**
 ([web](http://wordcram.org/), [gitHub](https://github.com/danbernier/WordCram)),
-a flexible word cloud generator that creates beautiful clouds using the pupular [Wordle's](http://www.wordle.net/) layout.
+a flexible word cloud generator that creates beautiful clouds using the popular [Wordle's](http://www.wordle.net/) layout.
 
 ### Usage
 
@@ -31,7 +33,7 @@ The project takes the data from 'datapath/input/folder' and returns the storm in
 'datapath/output/folder/parameters'
 2. Decide the cloud's size in 'AppletConf'.
 3. Decide the storm configuration using 'StormConf' (number of files, number of words, colors, angles...)
-4. Create a stom!
+4. Create a Storm!
 
 ### Examples
 
