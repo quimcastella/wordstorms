@@ -1,0 +1,8 @@
+#!/bin/sh
+
+curdir=`dirname $0`
+curdir=`dirname $curdir`
+cp=$curdir/library/cue.language.jar:$curdir/library/processing/*:$curdir/dist/lib/wordstorm.jar
+
+echo $cp
+java -cp $cp wslauncher.StormLauncher

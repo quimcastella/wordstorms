@@ -5,7 +5,7 @@ package io;
  */
 public class DataPath {
 	public static String dataPath() {
-		String path =  "/home/quim/Documents/workspace/WordStorm/examples/data";
+		String path =  "/Users/csutton/hg/projects/storm-www-demo/cluster-docs/d2";
 		return path;		
 	}
 }
