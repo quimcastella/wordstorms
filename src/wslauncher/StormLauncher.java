@@ -12,7 +12,7 @@ import wordstorm.*;
 public class StormLauncher {
 	
 	public static void main(String[] args) {			
-		String folder = "PresidentialDebate"; //set the path to the data with io.DataPath and folder
+		String folder = "";
 		AppletConf apConf = new AppletConf(640,480,255); //cloud width, height and bk color 
 		
 		StormConf conf = new StormConf(); //Storm Parameters
