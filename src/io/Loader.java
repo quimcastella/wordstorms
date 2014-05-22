@@ -15,8 +15,10 @@ public abstract class Loader {
 	public abstract String getOutputMovie( StormConf conf, int cloudIndex, int frameNum );
 	public abstract String getLocalOutput( StormConf conf, int cloudIndex );
 	public abstract String getHTMLFolder();
+
 	public abstract String getHTMLOutput(int maxWords);
 	public abstract String getStormHTML(StormConf conf);
+    public abstract String getStormSVG(StormConf conf);
 	public abstract String getStormLog(StormConf conf);
 	
 	public abstract void loadText(PApplet parent,WordCram w, int index);

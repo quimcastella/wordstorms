@@ -355,4 +355,8 @@ public class WordStorm {
 			System.out.println(++i+" "+w.word+" "+index.get(w.word).getIdf());
 		}
 	}
+
+    public WordCram[] getClouds() {
+        return clouds;
+    }
 }

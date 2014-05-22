@@ -5,7 +5,7 @@ package io;
  */
 public class DataPath {
 	public static String dataPath() {
-		String path =  "/Users/csutton/hg/projects/storm-www-demo/cluster-docs/d2";
+		String path =  "examples/data";
 		return path;		
 	}
 }
