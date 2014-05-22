@@ -37,5 +37,6 @@ public class IndepLauncher {
 		f.init(); 
 		f.initProcess();	
 		HTMLSaver.singleStorm(load, conf, apConf);
+        SVGSaver.singleStorm(load, conf, apConf, f);
 	}
 }

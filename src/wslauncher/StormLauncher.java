@@ -12,7 +12,7 @@ import wordstorm.*;
 public class StormLauncher {
 	
 	public static void main(String[] args) {			
-		String folder = "";
+		String folder = "PresidentialDebate";
 		AppletConf apConf = new AppletConf(640,480,255); //cloud width, height and bk color 
 		
 		StormConf conf = new StormConf(); //Storm Parameters
@@ -38,5 +38,6 @@ public class StormLauncher {
 		f.init(); 
 		f.initProcess();	
 		HTMLSaver.singleStorm(load, conf, apConf);
+        SVGSaver.singleStorm(load, conf, apConf, f);
 	}
 }

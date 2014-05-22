@@ -70,7 +70,13 @@ public class FileLoader extends Loader{
 	public String getStormHTML(StormConf conf){
 		return DataPath.dataPath()+"/output/"+folder+"/"+ conf+".html";
 	}
-	@Override
+
+    @Override
+    public String getStormSVG(StormConf conf){
+        return DataPath.dataPath()+"/output/"+folder+"/"+ conf+"-svg.html";
+    }
+
+    @Override
 	public String getStormLog(StormConf conf){
 		return DataPath.dataPath()+"/output/"+folder+"/"+conf+".txt";
 	}
