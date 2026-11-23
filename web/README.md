@@ -11,6 +11,13 @@ Six collections of fairy tales and fables (`--example fairytales`). Bold words
 appear in more than one collection and sit in the same spot in every cloud;
 thin words belong to one collection.
 
+![A word storm of three Shakespeare tragedies and three comedies](https://raw.githubusercontent.com/quimcastella/wordstorms/master/docs/images/shakespeare.png)
+
+Three tragedies (top) and three comedies (bottom), dialogue only
+(`--example shakespeare`). *Heart* is in all six plays and *heaven* only in
+the tragedies. *Love* is in every play except Macbeth, which has *fear*,
+*blood* and *sleep* instead.
+
 Prefer a browser? [wordstorms.org](https://wordstorms.org) does the same, and
 your files never leave your computer.
 
