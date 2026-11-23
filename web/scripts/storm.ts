@@ -63,7 +63,9 @@ Options:
   -v, --version          Show the version
   -h, --help             Show this help
 
-Folders are read for .txt and .md files. Each file name becomes its cloud's title.`;
+Folders are read for .txt and .md files. Each file name becomes its cloud's title.
+A .json file given by name holds word counts made elsewhere, like {"economy": 45, "health": 18},
+used as they are instead of counting words in a text.`;
 
 function fail(message: string): never {
   console.error(`Error: ${message}\nRun with --help for the options.`);
@@ -134,7 +136,16 @@ function readDocs(paths: string[]): Doc[] {
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
       .map((f) => join(p, f));
   });
-  return files.map((f) => ({ name: basename(f, extname(f)), text: readFileSync(f, 'utf8') }));
+  return files.map((f): Doc => {
+    const name = basename(f, extname(f));
+    if (extname(f).toLowerCase() !== '.json') return { name, text: readFileSync(f, 'utf8') };
+    // Word counts made elsewhere: {"word": count, …}.
+    const words: unknown = JSON.parse(readFileSync(f, 'utf8'));
+    if (!words || typeof words !== 'object' || Array.isArray(words)) {
+      throw new Error(`${basename(f)} should hold an object of word counts, like {"economy": 45, "health": 18}.`);
+    }
+    return { name, words: words as Record<string, number> };
+  });
 }
 
 const example = args.example ? EXAMPLES.find((e) => e.id === args.example) : undefined;

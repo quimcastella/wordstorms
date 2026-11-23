@@ -82,7 +82,9 @@ are relative to where you run it.
 | `-v, --version` | Show the version | |
 
 Folders are read for `.txt` and `.md` files, and each file name becomes its
-cloud's title. SVGs embed their font, so they look the same anywhere.
+cloud's title. To use word counts from your own pipeline, give `.json` files
+like `{"economy": 45, "health": 18}` by name instead. SVGs embed their font, so
+they look the same anywhere.
 
 ## Use it as a library
 

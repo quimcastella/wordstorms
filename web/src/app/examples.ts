@@ -1,5 +1,5 @@
 // Loads the built-in example corpora; each text is only downloaded when picked.
-import type { Doc } from '../core/storm.ts';
+import type { TextDoc } from '../core/storm.ts';
 import { EXAMPLES, type Example, type ExampleLook } from './example-list.ts';
 
 export { EXAMPLES, type Example, type ExampleLook };
@@ -8,7 +8,7 @@ const files = import.meta.glob<string>('../../../examples/*/*.txt', { query: '?r
 
 export const exampleById = (id: string | null) => EXAMPLES.find((e) => e.id === id);
 
-export async function loadExampleDocs(example: Example): Promise<Doc[]> {
+export async function loadExampleDocs(example: Example): Promise<TextDoc[]> {
   return Promise.all(
     example.docs.map(async (name) => {
       const load = files[`../../../examples/${example.folder}/${name}.txt`];
