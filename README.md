@@ -1,5 +1,7 @@
 # Word Storms
 
+[![npm](https://img.shields.io/npm/v/wordstorms)](https://www.npmjs.com/package/wordstorms)
+
 **Word clouds that line up, so you can compare documents.** Make one cloud per
 document: words they share keep the same place, color and angle in every
 cloud, so similar documents look similar and what's distinctive stands out.
@@ -29,11 +31,12 @@ behind the site, a command-line tool, and a TypeScript library.
 
 ## Command line
 
-`wordstorms` makes a storm from text files and writes one SVG and one PNG per
-cloud into `./wordstorm`, all the same size so shared words line up when you
-stack them, plus an `index.html` that shows the clouds side by side (hover a
-word to find it in every cloud). It needs only
-[Node.js](https://nodejs.org) 22.18 or newer, not a clone:
+[`wordstorms`](https://www.npmjs.com/package/wordstorms) on npm makes a storm
+from text files and writes one SVG and one PNG per cloud into `./wordstorm`,
+all the same size so shared words line up when you stack them, plus an
+`index.html` that shows the clouds side by side (hover a word to find it in
+every cloud). It needs only [Node.js](https://nodejs.org) 22.18 or newer, not
+a clone; `npx` downloads and runs it:
 
 ```bash
 # One cloud per file in a folder
@@ -44,6 +47,13 @@ npx wordstorms a.txt b.txt c.txt --words 40 --distinct 30 --palette ocean --out 
 
 # A built-in example, in its own look
 npx wordstorms --example holmes
+```
+
+If you use it often, install it once to get a `wordstorms` command:
+
+```bash
+npm install -g wordstorms
+wordstorms path/to/folder
 ```
 
 From a clone (see [Development](#development)),

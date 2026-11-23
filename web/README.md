@@ -43,6 +43,13 @@ hover a word to find it in every cloud. All the clouds are the same size, so
 shared words line up when you stack them, and the SVGs embed their font, so
 they look the same anywhere. Each file name becomes its cloud's title.
 
+If you use it often, install it once to get a `wordstorms` command:
+
+```bash
+npm install -g wordstorms
+wordstorms path/to/folder
+```
+
 ## Options
 
 | Option | What it does | Default |
