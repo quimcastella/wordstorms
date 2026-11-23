@@ -49,7 +49,7 @@ export const EXAMPLES: Example[] = [
     blurb: 'Three tragedies and three comedies, dialogue only.',
     findings:
       'A word has the same color and spot in every play. ' +
-      '“Heart” shows up in all six and “heaven” only in the tragedies. “Love” is in every play except Macbeth, which has fear, blood and sleep instead.',
+      '“Heart” makes the cloud of all six plays and “heaven” only the tragedies’. “Love” is in every cloud except Macbeth’s, which has fear, blood and sleep instead.',
     folder: 'Shakespeare',
     docs: ['Hamlet', 'Macbeth', 'Othello', 'A Midsummer Night’s Dream', 'Twelfth Night', 'Much Ado About Nothing'],
     look: {
@@ -77,7 +77,7 @@ export const EXAMPLES: Example[] = [
     title: 'The four Sherlock Holmes novels',
     blurb: 'Arthur Conan Doyle, 1887–1915.',
     findings:
-      'Words that several novels share are in warm colors, and words from a single novel in cool ones. ' +
+      'Words in several novels’ clouds are in warm colors, and words in only one novel’s cloud in cool ones. ' +
       'Holmes sits in the middle of all four. Watson’s name only makes the top words in The Hound, where he does most of the investigating on his own.',
     folder: 'SherlockHolmes',
     docs: ['A Study in Scarlet', 'The Sign of the Four', 'The Hound of the Baskervilles', 'The Valley of Fear'],
@@ -105,8 +105,8 @@ export const EXAMPLES: Example[] = [
       'Six classic collections, one cloud each: Grimm (German), Andersen (Danish), Perrault (French), Aesop’s fables (Greek), ' +
       'the Arabian Nights and Japanese folk tales. The bigger the word, the more that collection uses it.',
     findings:
-      'Bold words appear in more than one collection, thin ones in just one. ' +
-      'There’s a “king” in every collection except Andersen and Aesop, and Aesop’s animals have almost nothing in common with the rest.',
+      'Bold words are in more than one collection’s cloud, thin ones in just one. ' +
+      '“King” is in every cloud except Andersen’s and Aesop’s, and Aesop’s animals have almost nothing in common with the rest.',
     folder: 'FairyTales',
     docs: ['Grimm', 'Andersen', 'Perrault', 'Aesop', 'Arabian Nights', 'Japanese Fairy Tales'],
     look: {
@@ -125,4 +125,20 @@ export const EXAMPLES: Example[] = [
       },
     },
   },
+];
+
+/**
+ * The fairy tales as separate clouds, for comparing with the storm (on the site and in the README).
+ * Per separate cloud: its own seed, share of vertical words and size scale. An ordinary cloud
+ * always puts its biggest word near the middle, so with one setting for all, "little" sat in
+ * the same spot in Grimm, Andersen and Perrault. These were searched so shared words land in
+ * different places and turn differently than in the storm and in each other.
+ */
+export const SEPARATE_LOOKS: Pick<StormOptions, 'seed' | 'verticalShare' | 'sizeExponent'>[] = [
+  { seed: 191056, verticalShare: 1 / 2, sizeExponent: 1.2 },
+  { seed: 485841, verticalShare: 3 / 7, sizeExponent: 0.9 },
+  { seed: 646003, verticalShare: 1 / 7, sizeExponent: 1.3 },
+  { seed: 671542, verticalShare: 5 / 14, sizeExponent: 1 },
+  { seed: 784190, verticalShare: 1 / 2, sizeExponent: 1.1 },
+  { seed: 675106, verticalShare: 2 / 7, sizeExponent: 0.8 },
 ];

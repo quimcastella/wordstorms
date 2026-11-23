@@ -1,22 +1,21 @@
 # wordstorms
 
 **Word clouds that line up, so you can compare documents.** Give it a few text
-files and it makes one cloud per file. Words the files share keep the same
-place, color and angle in every cloud, so similar documents look similar and
-what's distinctive stands out.
+files and it makes one cloud per file, all laid out together. Words the files
+share get similar positions and the same color and angle in every cloud, so
+you can see at a glance what the documents have in common and what sets each
+one apart.
 
 ![A word storm of six collections of fairy tales and fables](https://raw.githubusercontent.com/quimcastella/wordstorms/master/docs/images/fairytales.png)
 
 Six collections of fairy tales and fables (`--example fairytales`). Bold words
-appear in more than one collection and sit in the same spot in every cloud;
-thin words belong to one collection.
+are in more than one collection's cloud and sit in the same spot in each; thin
+words are in only one collection's cloud.
 
-![A word storm of three Shakespeare tragedies and three comedies](https://raw.githubusercontent.com/quimcastella/wordstorms/master/docs/images/shakespeare.png)
+Separate word clouds, made one at a time, put the same word somewhere
+different every time. In a word storm it lines up:
 
-Three tragedies (top) and three comedies (bottom), dialogue only
-(`--example shakespeare`). *Heart* is in all six plays and *heaven* only in
-the tragedies. *Love* is in every play except Macbeth, which has *fear*,
-*blood* and *sleep* instead.
+![The same three collections as separate word clouds and as a word storm](https://raw.githubusercontent.com/quimcastella/wordstorms/master/docs/images/comparison.png)
 
 Prefer a browser? [wordstorms.org](https://wordstorms.org) does the same, and
 your files never leave your computer.
@@ -24,7 +23,14 @@ your files never leave your computer.
 ## Usage
 
 You need [Node.js](https://nodejs.org) 22.18 or newer. There's nothing else to
-install:
+install. Try a built-in example first:
+
+```bash
+npx wordstorms --example holmes
+```
+
+Then open `wordstorm/index.html` in a browser and hover a word to find it in
+every cloud. To compare your own documents:
 
 ```bash
 # One cloud per .txt or .md file in a folder
@@ -32,18 +38,14 @@ npx wordstorms path/to/folder
 
 # Some files, with options
 npx wordstorms a.txt b.txt c.txt --words 40 --distinct 30 --palette ocean --out my-storm
-
-# A built-in example (shakespeare, holmes or fairytales), in its own look
-npx wordstorms --example holmes
 ```
 
-It writes one SVG and one PNG per cloud into `./wordstorm`, plus an
-`index.html` that shows all the clouds side by side: open it in a browser and
-hover a word to find it in every cloud. All the clouds are the same size, so
-shared words line up when you stack them, and the SVGs embed their font, so
-they look the same anywhere. Each file name becomes its cloud's title. To use
-word counts from your own pipeline, give `.json` files like
-`{"economy": 45, "health": 18}` by name instead of text files.
+It writes one SVG and one PNG per cloud into `./wordstorm`, plus that
+`index.html`. All the clouds are the same size, so shared words line up when
+you stack them, and the SVGs embed their font, so they look the same anywhere.
+Each file name becomes its cloud's title. To use word counts from your own
+pipeline, give `.json` files like `{"economy": 45, "health": 18}` by name
+instead of text files. The other examples are `shakespeare` and `fairytales`.
 
 If you use it often, install it once to get a `wordstorms` command:
 
@@ -51,6 +53,12 @@ If you use it often, install it once to get a `wordstorms` command:
 npm install -g wordstorms
 wordstorms path/to/folder
 ```
+
+Word size shows how much a document uses a word compared with the other words
+in its own cloud. "Shared" means a word made the top words of more than one
+document, so a word missing from a cloud may still be in that document, just
+not often enough. [The repository README](https://github.com/quimcastella/wordstorms#reading-a-word-storm)
+has more on reading a storm.
 
 ## Options
 
@@ -65,7 +73,7 @@ wordstorms path/to/folder
 | `-d, --distinct <0-100>` | Favor words a document uses more than the others, in %. Unlike tf-idf, words every document uses can still appear, so there are shared words to line up | 20 |
 | `--contrast <0.1-3>` | Size differences: 1 is the original scale, higher is more dramatic (the site's slider covers 0.5–1.5) | 1 |
 | `--vertical <0-1>` | Share of vertical words | 0.29 |
-| `--mark <how>` | Set shared words apart: `none`, `weight` (words only one document uses are drawn thin) or `warmth` (warm colors for shared words) | `none` |
+| `--mark <how>` | Set shared words apart: `none`, `weight` (words in only one cloud are drawn thin) or `warmth` (warm colors for words in several clouds) | `none` |
 | `-p, --palette <name>` | `storm`, `ocean`, `sunset`, `crayon`, `forest`, `midnight`, `parchment`, `ink`, `classic` | `storm` |
 | `--font <id>` | `oswald`, `bricolage`, `anton`, `fraunces`, `zilla`, `playfair`, `abril`, `fredoka`, `system` | `oswald` |
 | `--size <WxH>` | Cloud size in pixels | `640x480` |

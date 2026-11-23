@@ -1,28 +1,81 @@
 # Word Storms
 
 [![npm](https://img.shields.io/npm/v/wordstorms)](https://www.npmjs.com/package/wordstorms)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE.txt)
+[![CI](https://github.com/quimcastella/wordstorms/actions/workflows/web.yml/badge.svg)](https://github.com/quimcastella/wordstorms/actions/workflows/web.yml)
 
-**Word clouds that line up, so you can compare documents.** Make one cloud per
-document: words they share keep the same place, color and angle in every
-cloud, so similar documents look similar and what's distinctive stands out.
+**Word clouds that line up, so you can compare documents.** A word storm is a
+set of word clouds, one per document, made together. Words the documents share
+get similar positions and the same color and angle in every cloud, so you can
+see at a glance what the documents have in common and what sets each one
+apart. Use it to compare books, chapters, speeches, papers, survey answers or
+any other collection of texts.
 
-**Try it at [wordstorms.org](https://wordstorms.org).** Explore the examples
-(Shakespeare, Sherlock Holmes, fairy tales) or drop in your own `.txt` files
-and download the clouds. It runs in your browser, and your files never leave
-your computer.
+**[Try it at wordstorms.org](https://wordstorms.org).** It's free, there's
+nothing to install, and your documents never leave your browser.
 
 ![A word storm of six collections of fairy tales and fables](docs/images/fairytales.png)
 
-Six collections of fairy tales and fables. Bold words appear in more than one
-collection and sit in the same spot in every cloud: *little* in Grimm, Andersen
-and Perrault, *king* in four of the six. Thin words belong to one collection,
-like the lion, wolf and fox of Aesop's fables.
+Six collections of fairy tales and fables. Bold words are in more than one
+collection's cloud and sit in the same spot in each: *little* in Grimm,
+Andersen and Perrault, *king* in four of the six. Thin words are in only one
+collection's cloud, like the lion, wolf and fox of Aesop's fables.
+
+## Why not separate word clouds?
+
+![The same three collections as separate word clouds, where shared words land in different places, and as a word storm, where they line up](docs/images/comparison.png)
+
+Ordinary word clouds are laid out one at a time. *Little* and *good* are in
+all three of these clouds and *king* in two, but in the separate clouds (top)
+they land in different places, at different angles and in different colors,
+so comparing the clouds means hunting for each word. In the word storm (bottom)
+each sits in about the same spot, with the same color and angle, in every
+cloud. Your eye can skip what the collections share and go straight to what
+differs: Andersen's *Gerda* and *Kay*, Perrault's *ogre* and *Cinderella*.
+
+## Quick start
+
+**In a browser:** go to [wordstorms.org](https://wordstorms.org), pick an
+example, or drop in your own `.txt` files or paste text.
+
+**On the command line**, with [Node.js](https://nodejs.org) 22.18 or newer:
+
+```bash
+npx wordstorms --example holmes
+```
+
+Open `wordstorm/index.html` in your browser to explore the four Sherlock
+Holmes novels. To compare your own documents:
+
+```bash
+npx wordstorms path/to/folder
+```
+
+Each `.txt` or `.md` file becomes a cloud. [Command line](#command-line) lists
+every option, and [Use it as a library](#use-it-as-a-library) shows the
+TypeScript API.
+
+## Reading a word storm
+
+| What you see | What it means |
+|---|---|
+| Word size | How much this document uses the word, relative to the other words in its own cloud. Weights are normalized per cloud, so compare sizes within a cloud, not raw counts across clouds |
+| Position | A word that's in several clouds sits in about the same spot in each, so you can find it. Avoiding collisions can nudge the copies apart a little |
+| Color and angle | The same in every cloud for a shared word |
+| Bold and thin (`--mark weight`) | Bold words are in more than one cloud, thin words in only this one |
+| A word missing from a cloud | Not among that document's top words. It may still be in the document |
+
+"Shared" is about the clouds, not the documents. A word counts as shared when
+it makes the top words of two or more documents, so a word every document
+uses, but only one uses often, shows up in just that document's cloud.
+Raise `--words` to see more of each document's vocabulary.
 
 ![A word storm of three Shakespeare tragedies and three comedies](docs/images/shakespeare.png)
 
-Three tragedies (top) and three comedies (bottom), dialogue only. *Heart* is in
-all six plays and *heaven* only in the tragedies. *Love* is in every play
-except Macbeth, which has *fear*, *blood* and *sleep* instead.
+Three tragedies (top) and three comedies (bottom), dialogue only. *Heart* makes
+the cloud of all six plays, and *heaven* only the tragedies'. *Love* is in
+every cloud except Macbeth's, which has *fear*, *blood* and *sleep* instead.
+Macbeth does say *love*, just not often enough to make its top words.
 
 Word storms come from the paper
 [*Word Storms: Multiples of Word Clouds for Visual Comparison of Documents*](https://arxiv.org/abs/1301.0503)
@@ -32,11 +85,11 @@ behind the site, a command-line tool, and a TypeScript library.
 ## Command line
 
 [`wordstorms`](https://www.npmjs.com/package/wordstorms) on npm makes a storm
-from text files and writes one SVG and one PNG per cloud into `./wordstorm`,
+from text files. It writes one SVG and one PNG per cloud into `./wordstorm`,
 all the same size so shared words line up when you stack them, plus an
 `index.html` that shows the clouds side by side (hover a word to find it in
 every cloud). It needs only [Node.js](https://nodejs.org) 22.18 or newer, not
-a clone; `npx` downloads and runs it:
+a clone. `npx` downloads and runs it:
 
 ```bash
 # One cloud per file in a folder
@@ -71,7 +124,7 @@ are relative to where you run it.
 | `-d, --distinct <0-100>` | Favor words a document uses more than the others, in %. Unlike tf-idf, words every document uses can still appear, so there are shared words to line up | 20 |
 | `--contrast <0.1-3>` | Size differences: 1 is the original scale, higher is more dramatic (the site's slider covers 0.5–1.5) | 1 |
 | `--vertical <0-1>` | Share of vertical words | 0.29 |
-| `--mark <how>` | Set shared words apart: `none`, `weight` (words only one document uses are drawn thin) or `warmth` (warm colors for shared words) | `none` |
+| `--mark <how>` | Set shared words apart: `none`, `weight` (words in only one cloud are drawn thin) or `warmth` (warm colors for words in several clouds) | `none` |
 | `-p, --palette <name>` | `storm`, `ocean`, `sunset`, `crayon`, `forest`, `midnight`, `parchment`, `ink`, `classic` | `storm` |
 | `--font <id>` | `oswald`, `bricolage`, `anton`, `fraunces`, `zilla`, `playfair`, `abril`, `fredoka`, `system` | `oswald` |
 | `--size <WxH>` | Cloud size in pixels | `640x480` |
@@ -120,6 +173,21 @@ use a font of your own, load it first and pass a measurer:
 `generateStorm(docs, options, createCanvasMeasurer((w, h) => new OffscreenCanvas(w, h), '"My Font"'))`,
 and give the same font to `cloudToSvg`.
 
+Every option has a default. [`StormOptions`](web/src/core/storm.ts) documents
+each one, and `resolveOptions` returns them all with defaults filled in, or
+throws on an invalid value:
+
+| Kind | Options |
+|---|---|
+| Basic | `maxWords` (35), `width` × `height` (640×480), `seed`, `mode` (`coordinated` or `independent`) |
+| Words | `stopwords`, `morphology` and `minWordLength` (or one of `LANGUAGES`), `extraStopwords`, `excludeNumbers`, `textCase`, `weighting` (`tf` or `tfidf`), `distinctiveness` |
+| Look | `palette`, `markShared`, `fadeCommonWords`, `verticalShare`, `sizeExponent`, `minFontSize` and `maxFontSize` |
+| Layout | `tolerance`, `maxIterations`, `maxForceIterations` |
+
+`storm.stats` measures the result, including how far apart shared words'
+copies ended up (`sharedOffset`) and whether everything fit. See
+[ALGORITHM.md](ALGORITHM.md#measuring-a-layout).
+
 `PAPER_OPTIONS` gives the settings used in the paper
 (`generateStorm(docs, { ...PAPER_OPTIONS })`). `cropStorm` trims the clouds to
 a shared frame for saving, `stormToJson` saves the layout with the options
@@ -135,10 +203,11 @@ cloud on a canvas, and `stormToHtml` makes the side-by-side page.
    the average of its positions, cloud by cloud, until positions settle.
 3. **Tidy up.** A force layout pulls each word toward its position in similar
    documents, pushes overlapping words apart and keeps clouds compact.
-4. **Fill in.** Words only one document uses go in last, around the shared ones.
+4. **Fill in.** Words in only one cloud go in last, around the shared ones.
 
-[ALGORITHM.md](ALGORITHM.md) has the full algorithm, including where this
-implementation differs from the one used for the paper.
+[ALGORITHM.md](ALGORITHM.md) has the full algorithm, what a word storm can and
+can't tell you, and where this implementation differs from the one used for
+the paper.
 
 ## Development
 
@@ -171,6 +240,7 @@ Where things are:
 
 | Path | What's there |
 |---|---|
+| [web/src/index.ts](web/src/index.ts), [web/src/node.ts](web/src/node.ts) | The library's entry points, `wordstorms` and `wordstorms/node` |
 | [web/src/core/](web/src/core/) | Word choice, collision detection and layout (no DOM); colors in [palettes.ts](web/src/core/palettes.ts), where a test checks every color has 3:1 contrast with its background |
 | [web/src/render/](web/src/render/) | Drawing clouds as SVG or on a canvas, and saving them as separate files |
 | [web/src/app/](web/src/app/), [web/index.html](web/index.html) | The site. Each example's look (font, colors, settings, layout number, hidden ignore list) and its note are in [example-list.ts](web/src/app/example-list.ts); fonts ([Fontsource](https://fontsource.org) packages) in [font-list.ts](web/src/app/font-list.ts) and [fonts.ts](web/src/app/fonts.ts) |
@@ -181,15 +251,23 @@ Where things are:
 | [archive/](archive/) | Keepsakes from the original 2012 Java version; the full code is at the `java-original` tag |
 
 After changing an example, run `npm run render-examples` to check how all three
-look. The README images are `fairytales.png` and `shakespeare.png` from
-`web/out/examples/` after that run, copied to `docs/images/`. The example texts
+look. The README images are `fairytales.png`, `shakespeare.png` and
+`comparison.png` from `web/out/examples/` after that run, copied to
+`docs/images/`. The example texts
 are public domain, from Project Gutenberg; `npm run build-corpora` downloads
 and cleans them again (it strips the Gutenberg boilerplate and, for plays,
 speaker names and stage directions).
 
-## Citing
+## Research and citing
 
-If you use word storms in your work, please cite the paper:
+To make a figure again, keep its `storm.json` (`--format json`, or JSON on the
+site). It records the version, font and every option, seed included. The same
+version, font, documents and options give the same layout; a different font
+or version may not. [ALGORITHM.md](ALGORITHM.md#limitations) lists what to
+keep in mind when you read a word storm as evidence.
+
+If you use word storms in your work, please cite the paper (GitHub's "Cite
+this repository" uses [CITATION.cff](CITATION.cff)):
 
 ```bibtex
 @inproceedings{castella2014wordstorms,

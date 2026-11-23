@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use word storms in your work, please cite the paper below."
+title: "Word Storms"
+abstract: "Coordinated word clouds for comparing documents: words the documents share get similar positions, colors and angles in every cloud."
+type: software
+authors:
+  - family-names: Castella
+    given-names: Quim
+repository-code: "https://github.com/quimcastella/wordstorms"
+url: "https://wordstorms.org"
+license: Apache-2.0
+keywords:
+  - word cloud
+  - word storm
+  - text visualization
+preferred-citation:
+  type: conference-paper
+  title: "Word Storms: Multiples of Word Clouds for Visual Comparison of Documents"
+  authors:
+    - family-names: Castella
+      given-names: Quim
+    - family-names: Sutton
+      given-names: Charles
+  collection-title: "Proceedings of the 23rd International Conference on World Wide Web (WWW)"
+  year: 2014
+  url: "https://arxiv.org/abs/1301.0503"
+  identifiers:
+    - type: other
+      value: "arXiv:1301.0503"
+      description: arXiv preprint

@@ -1,15 +1,17 @@
 // Renders every built-in example, in its own look, to PNGs in out/examples/,
-// for checking looks and seeds. The README's images in docs/images/ are copied from here.
+// for checking looks and seeds, plus comparison.png: three fairy-tale
+// collections as separate clouds above the same three in the storm. The
+// README's images in docs/images/ are copied from here.
 //
 //   npm run render-examples
 import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { generateStorm, type Storm } from '../src/core/storm.ts';
+import { generateStorm, type Cloud, type Storm } from '../src/core/storm.ts';
 import { createCanvasMeasurer, fontWeight, type FontSpec } from '../src/measure/canvas.ts';
 import { drawCloud } from '../src/render/canvas.ts';
-import { EXAMPLES } from '../src/app/example-list.ts';
+import { EXAMPLES, SEPARATE_LOOKS } from '../src/app/example-list.ts';
 import { FONT_LIST } from '../src/app/font-list.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -63,4 +65,68 @@ for (const ex of EXAMPLES) {
   writeFileSync(file, drawStorm(storm, ex.title, font));
   const shared = new Set(storm.clouds.flatMap((c) => c.words.filter((w) => w.cloudCount > 1).map((w) => w.text))).size;
   console.log(`${ex.id.padEnd(12)} ${storm.stats.millis} ms, ${shared} shared words → ${file}`);
+}
+
+/** Rows of clouds under row titles, every cloud `size` px wide and tall. */
+function drawRows(rows: { title: string; clouds: Cloud[] }[], size: { width: number; height: number }, background: string, font: FontSpec): Buffer {
+  const columns = Math.max(...rows.map((r) => r.clouds.length));
+  const gap = 20;
+  const label = 34;
+  const header = 52;
+  const rowHeight = header + size.height + label;
+  const width = columns * size.width + (columns + 1) * gap;
+  const height = rows.length * rowHeight + gap;
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f5f4f0';
+  ctx.fillRect(0, 0, width, height);
+  rows.forEach((row, r) => {
+    const top = r * rowHeight;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#191c22';
+    ctx.font = '600 26px Helvetica';
+    ctx.fillText(row.title, gap, top + 38);
+    row.clouds.forEach((cloud, i) => {
+      const ox = gap + i * (size.width + gap);
+      const oy = top + header;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = background;
+      ctx.fillRect(ox, oy, size.width, size.height);
+      ctx.fillStyle = '#4b5563';
+      ctx.font = '500 18px Helvetica';
+      ctx.fillText(cloud.name, ox, oy + size.height + 24);
+      drawCloud(ctx, cloud, font, { x: ox, y: oy });
+    });
+  });
+  return canvas.toBuffer('image/png');
+}
+
+// The site's comparison, cut to three collections: the same words, font and palette, laid out
+// once as a storm and once as separate clouds (each its own run with its own seed, angles and
+// size scale, all six documents in every run so each cloud gets the same words as in the storm).
+{
+  const ex = EXAMPLES.find((e) => e.id === 'fairytales')!;
+  const docs = ex.docs.map((name) => ({ name, text: readFileSync(join(inputRoot, ex.folder, `${name}.txt`), 'utf8') }));
+  const font = FONT_LIST.find((f) => f.id === ex.look.font)!.spec;
+  const measurer = createCanvasMeasurer((w, h) => createCanvas(w, h), font);
+  const base = { ...ex.look.options, extraStopwords: ex.look.ignore };
+  const storm = generateStorm(docs, { ...base, mode: 'coordinated' }, measurer);
+  const shown = 3;
+  const separate = SEPARATE_LOOKS.slice(0, shown).map(
+    (look, i) => generateStorm(docs, { ...base, mode: 'independent', markShared: 'none', ...look }, measurer).clouds[i],
+  );
+  const file = join(outDir, 'comparison.png');
+  writeFileSync(
+    file,
+    drawRows(
+      [
+        { title: 'Separate word clouds: shared words land anywhere', clouds: separate },
+        { title: 'A word storm: shared words line up', clouds: storm.clouds.slice(0, shown) },
+      ],
+      storm,
+      storm.background,
+      font,
+    ),
+  );
+  console.log(`comparison   → ${file}`);
 }
