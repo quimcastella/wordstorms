@@ -36,57 +36,68 @@
             <strong>Drop text files</strong>
             <span>or click to browse · one cloud per file</span>
           </label>
+          <div class="examples">
+            <p class="examples-label">Or explore an example</p>
+            <div class="chips" id="examples"></div>
+          </div>
           <ul id="doclist" class="doclist"></ul>
           <div class="docfoot">
-            <button type="button" id="example" class="linkish">Load the example</button>
             <button type="button" id="clear" class="linkish muted" hidden>Clear all</button>
           </div>
         </section>
 
         <section>
-          <h2><span class="step">2</span>Layout</h2>
-          <div class="segmented" role="radiogroup" aria-label="Layout">
-            <input type="radio" name="mode" id="mode-c" value="coordinated" checked />
-            <label for="mode-c">Word storm</label>
-            <input type="radio" name="mode" id="mode-i" value="independent" />
-            <label for="mode-i">Separate clouds</label>
-          </div>
-          <p class="hint" id="modehint"></p>
-
+          <h2><span class="step">2</span>Words</h2>
           <label class="field">
-            <span>Words per cloud <output id="wordsOut">25</output></span>
-            <input type="range" id="words" min="10" max="80" step="5" value="25" />
+            <span>Words per cloud <output id="wordsOut">35</output></span>
+            <input type="range" id="words" min="10" max="80" step="5" value="35" />
           </label>
           <label class="field">
-            <span>Size words by</span>
-            <select id="weighting">
-              <option value="tf">How often they appear</option>
-              <option value="tfidf">How distinctive they are</option>
-            </select>
+            <span>Favor distinctive words <output id="distinctOut"></output></span>
+            <input type="range" id="distinct" min="0" max="100" step="10" value="20" />
+            <span class="scale" aria-hidden="true"><span>Most frequent</span><span>Most distinctive</span></span>
           </label>
-          <label class="switch" id="fadeRow">
-            <input type="checkbox" id="fade" role="switch" checked />
-            <span class="track" aria-hidden="true"></span>
-            <span>Fade words every document uses</span>
+          <label class="field">
+            <span>Ignore these words</span>
+            <input type="text" id="stop" placeholder="e.g. applause, laughter" autocomplete="off" />
           </label>
         </section>
 
         <section>
-          <h2><span class="step">3</span>Style</h2>
-          <fieldset class="fonts" id="fonts">
-            <legend>Font</legend>
-          </fieldset>
+          <h2><span class="step">3</span>Look</h2>
           <fieldset class="palettes" id="palettes">
             <legend>Colors</legend>
           </fieldset>
+          <fieldset class="fonts" id="fonts">
+            <legend>Font</legend>
+          </fieldset>
+          <div class="field">
+            <span>Set shared words apart by</span>
+            <div class="segmented" role="radiogroup" aria-label="Set shared words apart by">
+              <input type="radio" name="markShared" id="mark-n" value="none" checked />
+              <label for="mark-n">None</label>
+              <input type="radio" name="markShared" id="mark-w" value="weight" />
+              <label for="mark-w">Weight</label>
+              <input type="radio" name="markShared" id="mark-c" value="warmth" />
+              <label for="mark-c">Warm/cool</label>
+            </div>
+            <p class="hint" id="markhint"></p>
+          </div>
+          <label class="field">
+            <span>Size differences <output id="contrastOut"></output></span>
+            <input type="range" id="contrast" min="50" max="150" step="10" value="100" />
+            <span class="scale" aria-hidden="true"><span>Even</span><span>Dramatic</span></span>
+          </label>
+          <label class="field">
+            <span>Vertical words <output id="verticalOut"></output></span>
+            <!-- In fourteenths, so the original's 2 in 7 is a stop. -->
+            <input type="range" id="vertical" min="0" max="14" step="1" value="4" />
+            <span class="scale" aria-hidden="true"><span>None</span><span>All</span></span>
+          </label>
 
           <details class="more">
             <summary>More options</summary>
             <div class="more-body">
-              <label class="field">
-                <span>Ignore these words</span>
-                <input type="text" id="stop" placeholder="e.g. applause, laughter" autocomplete="off" />
-              </label>
               <label class="field">
                 <span>Cloud shape</span>
                 <select id="aspect">
@@ -96,13 +107,16 @@
                   <option value="480x600">Portrait 4:5</option>
                 </select>
               </label>
-              <div class="seedrow">
-                <label class="field">
-                  <span>Random seed</span>
-                  <input type="number" id="seed" value="123456" />
-                </label>
-                <button type="button" id="shuffle" title="Try another arrangement">Shuffle</button>
-              </div>
+              <label class="switch" id="fadeRow">
+                <input type="checkbox" id="fade" role="switch" />
+                <span class="track" aria-hidden="true"></span>
+                <span>Fade words every document uses</span>
+              </label>
+              <label class="field">
+                <span>Layout number</span>
+                <input type="number" id="seed" value="123456" />
+                <span class="hint">The same number gives the same layout. New layout picks another.</span>
+              </label>
             </div>
           </details>
         </section>
@@ -112,8 +126,21 @@
         <div class="results-head">
           <div>
             <h1 id="title">Compare documents at a glance</h1>
+            <p id="blurb" class="blurb"></p>
             <p id="status" class="status" role="status"></p>
           </div>
+        </div>
+        <div class="toolbar" id="toolbar" hidden>
+          <div class="segmented" role="radiogroup" aria-label="Layout">
+            <input type="radio" name="mode" id="mode-c" value="coordinated" checked />
+            <label for="mode-c" title="Shared words keep the same place, color and angle in every cloud">Word storm</label>
+            <input type="radio" name="mode" id="mode-i" value="independent" />
+            <label for="mode-i" title="Each cloud is laid out on its own, like an ordinary word cloud">Separate clouds</label>
+          </div>
+          <button type="button" id="regen" class="regen" title="Try another arrangement (R)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            New layout
+          </button>
           <div class="downloads" id="actions" hidden>
             <span class="dl-label">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12m0 0 4.5-4.5M12 16l-4.5-4.5M4 19h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -141,7 +168,7 @@
             Words they share keep the same place, color and angle in every cloud, so similar documents look
             similar and what's distinctive stands out.
           </p>
-          <button type="button" id="example2" class="primary">Try the 2012 presidential debates</button>
+          <button type="button" id="example2" class="primary">Try an example</button>
         </div>
       </section>
     </main>

@@ -373,7 +373,8 @@ svg {
 
 .segmented {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -426,6 +427,13 @@ svg {
   justify-content: space-between;
   font-size: 0.9rem;
   font-weight: 500;
+}
+
+.field > span.scale {
+  margin-top: -0.2rem;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--muted);
 }
 
 .field output {
@@ -519,7 +527,7 @@ legend {
 
 .fonts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.45rem;
 }
 
@@ -530,7 +538,8 @@ legend {
 .font-option {
   position: relative;
   display: grid;
-  padding: 0.5rem 0.65rem 0.55rem;
+  justify-items: center;
+  padding: 0.4rem 0.3rem 0.45rem;
   border: 1px solid var(--border);
   border-radius: 10px;
   cursor: pointer;
@@ -553,7 +562,7 @@ legend {
 }
 
 .font-option .sample {
-  font-size: 1.45rem;
+  font-size: 1.3rem;
   line-height: 1.2;
   letter-spacing: -0.01em;
 }
@@ -563,15 +572,9 @@ legend {
   font-weight: 600;
 }
 
-.font-option .note {
-  font-size: 0.74rem;
-  color: var(--muted);
-  line-height: 1.3;
-}
-
 .palettes {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.45rem;
 }
 
@@ -605,8 +608,8 @@ legend {
 
 .swatch {
   display: flex;
-  gap: 4px;
-  padding: 7px;
+  gap: 3px;
+  padding: 6px;
   border-radius: 7px;
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
 }
@@ -658,15 +661,8 @@ legend {
   margin-top: 0.8rem;
 }
 
-.seedrow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem;
-  align-items: end;
-}
-
-.seedrow button {
-  padding: 0.45rem 0.8rem;
+.field > .hint {
+  margin: 0;
 }
 
 /* ---------- Results ---------- */
@@ -716,6 +712,47 @@ legend {
   to {
     transform: rotate(360deg);
   }
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.toolbar[hidden] {
+  display: none;
+}
+
+.toolbar .segmented {
+  min-width: 17rem;
+}
+
+.regen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 9px;
+  box-shadow: var(--shadow);
+}
+
+.regen svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.4s;
+}
+
+.regen:hover svg {
+  transform: rotate(-120deg);
+}
+
+.toolbar .downloads {
+  margin-left: auto;
 }
 
 .downloads {
@@ -1024,7 +1061,59 @@ legend {
     order: -1;
   }
 
+  .toolbar .segmented {
+    flex: 1 1 100%;
+  }
+
+  .toolbar .dl-label {
+    display: none;
+  }
+
   .about {
     padding: 2rem 16px 3rem;
   }
+}
+
+/* ---------- Examples ---------- */
+
+.examples {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.examples-label {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.chip {
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.blurb {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+}
+
+.blurb:empty {
+  display: none;
 }

@@ -13,9 +13,12 @@ const docs = readdirSync(dir)
   .map((f) => ({ name: f, text: readFileSync(join(dir, f), 'utf8') }));
 const measurer = () => createCanvasMeasurer((w, h) => createCanvas(w, h), 'Helvetica');
 
+// Plain word counts, so the debates' most common words ("people") are in every cloud.
+const counts = { maxWords: 25, distinctiveness: 0, fadeCommonWords: true };
+
 describe('generateStorm', () => {
-  const coordinated = generateStorm(docs, { mode: 'coordinated' }, measurer());
-  const independent = generateStorm(docs, { mode: 'independent' }, measurer());
+  const coordinated = generateStorm(docs, { ...counts, mode: 'coordinated' }, measurer());
+  const independent = generateStorm(docs, { ...counts, mode: 'independent' }, measurer());
 
   it('makes one cloud per document, each with up to maxWords words', () => {
     for (const storm of [coordinated, independent]) {
@@ -28,9 +31,9 @@ describe('generateStorm', () => {
   });
 
   it('is deterministic for a given seed', () => {
-    const again = generateStorm(docs, { mode: 'coordinated' }, measurer());
+    const again = generateStorm(docs, { ...counts, mode: 'coordinated' }, measurer());
     expect(again.clouds).toEqual(coordinated.clouds);
-    const other = generateStorm(docs, { mode: 'coordinated', seed: 7 }, measurer());
+    const other = generateStorm(docs, { ...counts, mode: 'coordinated', seed: 7 }, measurer());
     expect(other.clouds).not.toEqual(coordinated.clouds);
   });
 
@@ -56,10 +59,44 @@ describe('generateStorm', () => {
 
   it('colors words from the chosen palette and reports its background', () => {
     expect(coordinated.background).toBe(PALETTES.storm.background);
-    for (const w of coordinated.clouds.flatMap((c) => c.words)) expect(PALETTES.storm.colors).toContain(w.color);
-    const midnight = generateStorm(docs.slice(0, 2), { palette: 'midnight', maxWords: 10 }, measurer());
+    const midnight = generateStorm(docs.slice(0, 2), { palette: 'midnight', maxWords: 10, markShared: 'none' }, measurer());
     expect(midnight.background).toBe(PALETTES.midnight.background);
     for (const w of midnight.clouds.flatMap((c) => c.words)) expect(PALETTES.midnight.colors).toContain(w.color);
+  });
+
+  it('marks shared words by weight: only words one cloud has are light', () => {
+    const storm = generateStorm(docs, { ...counts, markShared: 'weight' }, measurer());
+    const words = storm.clouds.flatMap((c) => c.words);
+    for (const w of words) expect(w.light).toBe(w.cloudCount === 1);
+    expect(words.some((w) => w.light)).toBe(true);
+    for (const w of words) expect(PALETTES.storm.colors).toContain(w.color);
+  });
+
+  it('marks shared words by warmth: warm colors for shared words, cool for the rest', () => {
+    const storm = generateStorm(docs, { ...counts, markShared: 'warmth' }, measurer());
+    for (const w of storm.clouds.flatMap((c) => c.words)) {
+      expect(w.light).toBe(false);
+      expect(w.cloudCount > 1 ? PALETTES.storm.warm : PALETTES.storm.cool).toContain(w.color);
+    }
+  });
+
+  it('marks nothing by default', () => {
+    expect(coordinated.clouds.flatMap((c) => c.words).some((w) => w.light)).toBe(false);
+  });
+
+  it('draws no vertical words when verticalShare is 0', () => {
+    const flat = generateStorm(docs.slice(0, 2), { maxWords: 15, verticalShare: 0 }, measurer());
+    expect(flat.clouds.flatMap((c) => c.words).every((w) => w.angle === 0)).toBe(true);
+  });
+
+  it('narrows the range of font sizes with a lower sizeExponent', () => {
+    const range = (s: Storm) => {
+      const sizes = s.clouds[0].words.map((w) => w.fontSize);
+      return Math.max(...sizes) / Math.min(...sizes);
+    };
+    const linear = generateStorm(docs.slice(0, 2), { ...counts, sizeExponent: 1 }, measurer());
+    const gentle = generateStorm(docs.slice(0, 2), { ...counts, sizeExponent: 0.5 }, measurer());
+    expect(range(gentle)).toBeLessThan(range(linear));
   });
 
   it('fades words that every cloud shares', () => {

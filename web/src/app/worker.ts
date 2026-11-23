@@ -1,14 +1,12 @@
 import { generateStorm, type Doc, type StormOptions } from '../core/storm.ts';
-import { createCanvasMeasurer, type FontSpec } from '../measure/canvas.ts';
-import { loadFont, type FontFile } from './fonts.ts';
+import { createCanvasMeasurer } from '../measure/canvas.ts';
+import { loadFont, type FontFaces } from './fonts.ts';
 
 export interface StormRequest {
   docs: Doc[];
   options: Partial<StormOptions>;
-  font: FontSpec;
-  /** @font-face name and files to load before measuring; empty for system fonts. */
-  face: string;
-  files: FontFile[];
+  /** The font to load before measuring (absolute URLs). */
+  font: FontFaces;
 }
 
 export type StormResponse =
@@ -21,15 +19,15 @@ export type StormResponse =
 const scope = self as unknown as DedicatedWorkerGlobalScope & { fonts?: FontFaceSet };
 
 scope.onmessage = async (event: MessageEvent<StormRequest>) => {
-  const { docs, options, font, face, files } = event.data;
+  const { docs, options, font } = event.data;
   const post = (msg: StormResponse) => scope.postMessage(msg);
-  if (typeof OffscreenCanvas === 'undefined' || (face && !scope.fonts)) {
+  if (typeof OffscreenCanvas === 'undefined' || (font.face && !scope.fonts)) {
     post({ type: 'unsupported' });
     return;
   }
   try {
-    if (face) await loadFont(scope.fonts!, face, font.weight ?? 400, files);
-    const measurer = createCanvasMeasurer((w, h) => new OffscreenCanvas(w, h), font);
+    if (font.face) await loadFont(scope.fonts!, font);
+    const measurer = createCanvasMeasurer((w, h) => new OffscreenCanvas(w, h), font.spec);
     const storm = generateStorm(docs, options, measurer, (message) => post({ type: 'progress', message }));
     post({ type: 'done', storm });
   } catch (err) {

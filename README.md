@@ -19,12 +19,30 @@ locally; your files never leave your computer.
 
 Things you can change:
 
+Above the clouds:
+
 - **Word storm or separate clouds:** coordinated layout, or ordinary
   independent clouds for comparison.
-- **Words per cloud** (10–80).
-- **Size words by** how often they appear, or by how *distinctive* they are to
-  each document (tf-idf).
-- **Fade common words:** words that every document uses are drawn lighter.
+- **New layout** (or press R): another arrangement of the same words.
+
+In the panel:
+
+- **Words per cloud** (10–80, default 35).
+- **Favor distinctive words:** from plain word counts to words each document
+  uses more than the others do (keyness). Unlike tf-idf, words that every
+  document uses can still appear, so the clouds keep shared words to line up.
+- **Ignore these words.**
+- **Set shared words apart by:**
+  - **None** (default): a random palette color per word, as in the original.
+  - **Weight**: words only one document uses are drawn in a light weight,
+    and shared words stay bold. Anton has only one weight, so this option
+    changes nothing with that font.
+  - **Warm/cool**: shared words get the palette's warm colors, and words
+    only one document uses get its cool ones.
+- **Size differences:** how much bigger frequent words get. The default is
+  the original's linear scale; toward Dramatic the top words get bigger
+  still, toward Even sizes even out.
+- **Vertical words:** from none to all (default 29%, the original's 2 in 7).
 - **Font:** Oswald (default, a condensed sans that packs tightly), Bricolage
   Grotesque, Anton, Fraunces, Zilla Slab (a slab, like the original's
   ChunkFive), or your system font. All are open-source Google Fonts,
@@ -32,7 +50,8 @@ Things you can change:
 - **Colors:** Storm, Ocean, Sunset, Forest, Midnight (dark), Ink, or Classic
   (the original random colors). Every palette color has at least 3:1
   contrast against its background.
-- Words to ignore, cloud shape, and random seed.
+- Under More options: cloud shape, fading words every document uses (as in
+  the original), and the layout number (the random seed).
 
 Hover a word to highlight it in every cloud; click to pin it.
 
@@ -46,8 +65,19 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:5173, or http://localhost:5173/?example to load the
-2012 US presidential debates straight away.
+Then open http://localhost:5173. The page opens on an example; pick another
+with the chips under the drop zone, or link to one with `?example=<id>`:
+
+| `?example=` | Corpus |
+|---|---|
+| `shakespeare` | Hamlet, Macbeth, Othello vs. A Midsummer Night's Dream, Twelfth Night, Much Ado About Nothing (dialogue only) |
+| `holmes` | The four Sherlock Holmes novels |
+| `fairytales` | Grimm, Andersen, Perrault, Aesop, Arabian Nights, Japanese fairy tales |
+
+The literary texts are public domain, from Project Gutenberg;
+`npm run build-corpora` rebuilds them (it downloads from a Gutenberg mirror
+and strips the Gutenberg boilerplate, front matter, and for plays the speaker
+names and stage directions).
 
 | Command | What it does |
 |---|---|
@@ -55,6 +85,8 @@ Then open http://localhost:5173, or http://localhost:5173/?example to load the
 | `npm test` | Unit and layout tests |
 | `npm run typecheck` | TypeScript checks |
 | `npm run compare` | Lays out the example data and compares it with the original Java output in [reference/](reference/); writes SVGs to `web/out/` |
+| `npm run render-examples` | Renders every example to PNG in `web/out/examples/` |
+| `npm run build-corpora` | Rebuilds the example texts from Project Gutenberg |
 | `npm run build` | Production build in `web/dist/` |
 
 ## Use it as a library
@@ -76,13 +108,17 @@ const storm = generateStorm(
 const svg = stormToSvg(storm);
 ```
 
+`JAVA_OPTIONS` reproduces the original version's word choice and look
+(`generateStorm(docs, { ...JAVA_OPTIONS }, measurer)`).
+
 In Node, pass a canvas from [`@napi-rs/canvas`](https://www.npmjs.com/package/@napi-rs/canvas) instead
 (see [web/scripts/compare-reference.ts](web/scripts/compare-reference.ts)).
 
 ## How it works
 
 1. **Pick words.** Each document's most frequent words, minus common English
-   words like "the" and "and".
+   words like "the" and "and", boosted by how much more this document uses
+   them than the others.
 2. **Place shared words together.** A word that appears in several documents is
    placed at the average of its positions, cloud by cloud, until positions
    settle.

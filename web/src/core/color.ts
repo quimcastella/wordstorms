@@ -16,3 +16,18 @@ export function hsbToHex(h: number, s: number, b: number): string {
   const hex = (v: number) => Math.round(v * 255).toString(16).padStart(2, '0');
   return `#${hex(r)}${hex(g)}${hex(bl)}`;
 }
+
+type Rgb = [number, number, number];
+
+const parseHex = (hex: string): Rgb => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255) as Rgb;
+const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+/** WCAG contrast ratio between two #rrggbb colors. */
+export function contrastRatio(a: string, b: string): number {
+  const lum = (hex: string) => {
+    const [r, g, bl] = parseHex(hex).map(toLinear);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+}

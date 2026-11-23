@@ -28,6 +28,11 @@ font sizes 8–65 px, seed 123456.
    (cue.language guesses the language by which list matches the most tokens;
    English is the one that matters for the examples). `’` is normalized to `'`
    before lookup.
+   **Port:** the default list is `extended`: the list above plus common
+   verbs, adverbs and determiners (one, now, come, went, must, much…), early
+   modern English function words (thou, hath, 'tis…) and title
+   abbreviations (mr, mrs, dr). The original list is still available as
+   `english`, and `npm run compare` uses it so word choice matches Java.
 4. Drop tokens that parse as numbers. **Port:** also strip a trailing `'s`
    so possessives count with their noun (`romney's` → `romney`); the stop
    list is checked before stripping, so `it's` and `that's` stay stop words.
@@ -41,6 +46,20 @@ font sizes 8–65 px, seed 123456.
 8. Keep the top `maxWords`.
 9. Normalize: `weight_i = 1.2 · count_i · n / (2 · Σcount)`, so the mean
    weight is 0.6. `origWeight = weight`.
+
+### Port: keyness and size contrast
+
+Two port-only steps (`JAVA_OPTIONS` turns keyness off):
+
+- **Keyness** (`distinctiveness` = s, default 0.2), between steps 5 and 7:
+  multiply each count by `(rate_doc(w) / rate_corpus(w))^s`, where a rate is
+  the word's count over all counted words. A word used at the same rate
+  everywhere keeps its count; one a document uses twice as much as the corpus
+  is multiplied by `2^s`. Unlike tf-idf, a word in every document is not
+  zeroed, so shared words stay to coordinate.
+- **Size contrast** (`sizeExponent` = e, default 1 as in Java): step 9
+  normalizes `count^e` instead of `count`; `e > 1` widens the gap between the
+  top word and the rest, `e < 1` narrows it.
 
 ### Optional idf
 
@@ -70,6 +89,8 @@ weight.
 - **Angle**, coordinated (`coorAngler`): one angle per word for the whole
   storm, picked uniformly from `[0, 0, 0, 0, 0, +π/2, −π/2]`.
   Independent: same distribution, drawn per cloud.
+  **Port:** the vertical share is an option (`verticalShare`, default 2/7 as in Java,
+  split evenly between +π/2 and −π/2; Java: 2/7).
 - **Color**, coordinated (`coorColorer`): one color per word. HSB on a 0–255
   scale: hue `U(0,256)`, saturation 200, brightness `50 + U(0,150)`. With
   `idfColor`, alpha is a logistic of idf so words shared by every cloud fade:
@@ -77,6 +98,13 @@ weight.
   Independent: same HSB distribution, drawn per word per cloud, opaque.
   **Port:** colors come from a palette (uniform pick from its list, same
   coordination rules); the `classic` palette keeps the HSB distribution above.
+  `idfColor` fading is off by default.
+- **Port: marking shared words** (`markShared`):
+  - `none` (the default): no marking, as in Java.
+  - `weight`: words that only one cloud has are measured and drawn in the
+    font's light weight.
+  - `warmth`: the color comes from the palette's warm list for shared words
+    and its cool list for the others. `classic` uses HSB hue ranges instead.
 
 ## 4. Placement primitive (spiral search)
 

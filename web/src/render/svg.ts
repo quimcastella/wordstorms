@@ -1,18 +1,20 @@
 import type { Cloud, PlacedWord, Storm } from '../core/storm.ts';
-import { DEFAULT_FONT, type FontSpec } from '../measure/canvas.ts';
+import { DEFAULT_FONT, fontWeight, type FontSpec } from '../measure/canvas.ts';
 
 const escapeXml = (s: string) =>
   s.replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]!);
 
 const num = (n: number) => String(Math.round(n * 100) / 100);
 
-export function wordToSvg(w: PlacedWord): string {
+/** One word; `font` sets the weight of light words. */
+export function wordToSvg(w: PlacedWord, font?: FontSpec): string {
   const tx = num(w.x + w.originX);
   const ty = num(w.y + w.originY);
   const rotate = w.angle === 0 ? '' : ` rotate(${w.angle})`;
   const opacity = w.opacity < 1 ? ` fill-opacity="${num(w.opacity)}"` : '';
+  const weight = w.light && font?.lightWeight ? ` font-weight="${font.lightWeight}"` : '';
   return (
-    `<text transform="translate(${tx} ${ty})${rotate}" font-size="${num(w.fontSize)}" ` +
+    `<text transform="translate(${tx} ${ty})${rotate}" font-size="${num(w.fontSize)}"${weight} ` +
     `fill="${w.color}"${opacity} data-word="${escapeXml(w.text)}">${escapeXml(w.text)}</text>`
   );
 }
@@ -28,7 +30,7 @@ export interface SvgOptions {
 }
 
 const fontAttrs = (font: FontSpec = { family: DEFAULT_FONT }) =>
-  `font-family="${escapeXml(font.family)}" font-weight="${font.weight ?? 400}"`;
+  `font-family="${escapeXml(font.family)}" font-weight="${fontWeight(font)}"`;
 
 const style = (css?: string) => (css ? `<style>${css.replace(/<\//g, '<\\/')}</style>` : '');
 
@@ -40,7 +42,7 @@ export function cloudToSvg(cloud: Cloud, width: number, height: number, opts: Sv
     `<svg${xmlns} viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" ` +
     `${fontAttrs(opts.font)} role="img" aria-label="${escapeXml(cloud.name)}">` +
     `<title>${escapeXml(cloud.name)}</title>${style(opts.css)}${bg}` +
-    cloud.words.map(wordToSvg).join('') +
+    cloud.words.map((w) => wordToSvg(w, opts.font)).join('') +
     `</svg>`
   );
 }

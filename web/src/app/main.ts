@@ -6,7 +6,8 @@ import { PALETTES, type PaletteName } from '../core/palettes.ts';
 import { generateStorm, type Doc, type Storm, type StormOptions } from '../core/storm.ts';
 import { createCanvasMeasurer } from '../measure/canvas.ts';
 import { cloudToSvg, stormToSvg } from '../render/svg.ts';
-import { absoluteFiles, embeddedFontCss, fontById, FONTS, loadFont, type CloudFont } from './fonts.ts';
+import { EXAMPLES, exampleById, loadExampleDocs, type Example } from './examples.ts';
+import { absoluteFaces, embeddedFontCss, fontById, FONTS, loadFont, type CloudFont } from './fonts.ts';
 import type { StormRequest, StormResponse } from './worker.ts';
 import './style.css';
 
@@ -15,14 +16,19 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const ui = {
   drop: $<HTMLLabelElement>('drop'),
   files: $<HTMLInputElement>('files'),
-  example: $<HTMLButtonElement>('example'),
+  examples: $('examples'),
   example2: $<HTMLButtonElement>('example2'),
   clear: $<HTMLButtonElement>('clear'),
   doclist: $<HTMLUListElement>('doclist'),
-  modehint: $('modehint'),
   words: $<HTMLInputElement>('words'),
   wordsOut: $<HTMLOutputElement>('wordsOut'),
-  weighting: $<HTMLSelectElement>('weighting'),
+  distinct: $<HTMLInputElement>('distinct'),
+  distinctOut: $<HTMLOutputElement>('distinctOut'),
+  contrast: $<HTMLInputElement>('contrast'),
+  contrastOut: $<HTMLOutputElement>('contrastOut'),
+  markhint: $('markhint'),
+  vertical: $<HTMLInputElement>('vertical'),
+  verticalOut: $<HTMLOutputElement>('verticalOut'),
   fade: $<HTMLInputElement>('fade'),
   fadeRow: $('fadeRow'),
   fonts: $<HTMLFieldSetElement>('fonts'),
@@ -30,8 +36,10 @@ const ui = {
   stop: $<HTMLInputElement>('stop'),
   aspect: $<HTMLSelectElement>('aspect'),
   seed: $<HTMLInputElement>('seed'),
-  shuffle: $<HTMLButtonElement>('shuffle'),
+  regen: $<HTMLButtonElement>('regen'),
+  toolbar: $('toolbar'),
   title: $('title'),
+  blurb: $('blurb'),
   status: $('status'),
   actions: $('actions'),
   focus: $('focus'),
@@ -47,11 +55,19 @@ const MODE_HINTS = {
   coordinated: 'Shared words keep the same place, color and angle in every cloud.',
   independent: 'Each cloud is laid out on its own, like an ordinary word cloud.',
 };
-const FOCUS_HINT = 'Hover a word to find it in every cloud. Click to pin it.';
-const EXAMPLE_TITLE = '2012 US presidential debates';
+/** In fourteenths, so the original's 2 in 7 is a stop. */
+const VERTICAL_STEPS = 14;
+const MARK_HINTS = {
+  none: 'Every word gets a random color from the palette, as in the original.',
+  weight: 'Words only one document uses are drawn thin; shared words stay bold.',
+  warmth: 'Shared words get warm colors; words only one document uses get cool ones.',
+};
+const FOCUS_HINT = 'Hover a word to find it in every cloud; click to pin it.';
+const focusHint = () => `${MODE_HINTS[selected('mode') as StormOptions['mode']]} ${FOCUS_HINT}`;
+const DEFAULT_EXAMPLE = EXAMPLES[0];
 
 let docs: Doc[] = [];
-let isExample = false;
+let example: Example | null = null;
 let storm: Storm | null = null;
 let stormFont: CloudFont = FONTS[0];
 let worker: Worker | null = null;
@@ -61,9 +77,22 @@ let pinned: string | null = null;
 
 // ---------- Pickers ----------
 
+const pageFaces = new Map<string, Promise<void>>();
+
+/** Loads a font's regular (or light) weight on the page, once. */
+function pageFont(font: CloudFont, light: boolean): Promise<void> {
+  const key = `${font.id}|${light}`;
+  let loaded = pageFaces.get(key);
+  if (!loaded) {
+    loaded = loadFont(document.fonts, light ? { ...font, files: [] } : { ...font, lightFiles: [] });
+    pageFaces.set(key, loaded);
+  }
+  return loaded;
+}
+
 function buildPickers() {
   for (const f of FONTS) {
-    if (f.face) loadFont(document.fonts, f.face, f.spec.weight ?? 400, f.files).catch(() => {});
+    pageFont(f, false).catch(() => {});
   }
   ui.fonts.append(
     ...FONTS.map((f, i) => {
@@ -71,12 +100,12 @@ function buildPickers() {
       label.className = 'font-option';
       label.innerHTML =
         `<input type="radio" name="font" value="${f.id}"${i === 0 ? ' checked' : ''} />` +
-        `<span class="sample">Storm</span><span class="name"></span><span class="note"></span>`;
+        `<span class="sample">Storm</span><span class="name"></span>`;
+      label.title = f.note;
       const sample = label.querySelector<HTMLElement>('.sample')!;
       sample.style.fontFamily = f.spec.family;
       sample.style.fontWeight = String(f.spec.weight ?? 400);
       label.querySelector('.name')!.textContent = f.label;
-      label.querySelector('.note')!.textContent = f.note;
       return label;
     }),
   );
@@ -107,24 +136,51 @@ async function addFiles(list: FileList | File[]) {
   }
   const added = await Promise.all(files.map(async (f) => ({ name: f.name.replace(/\.[^.]+$/, ''), text: await f.text() })));
   const names = new Set(added.map((d) => d.name));
-  const kept = isExample ? [] : docs.filter((d) => !names.has(d.name));
+  // Your own files replace an example rather than mixing with it.
+  const kept = example ? [] : docs.filter((d) => !names.has(d.name));
   docs = [...kept, ...added].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-  isExample = false;
+  setExample(null);
   docsChanged();
 }
 
-async function loadExample() {
-  const modules = import.meta.glob<string>('../../../examples/data/input/PresidentialDebate/*.txt', {
-    query: '?raw',
-    import: 'default',
-  });
-  docs = await Promise.all(
-    Object.entries(modules)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(async ([path, load]) => ({ name: path.split('/').pop()!.replace(/\.txt$/, ''), text: await load() })),
+async function loadExample(ex: Example) {
+  setExample(ex);
+  storm = null;
+  renderSkeleton(ex.docs.length);
+  setStatus('Loading example…', 'busy');
+  try {
+    const loaded = await loadExampleDocs(ex);
+    if (example !== ex) return; // another example was picked meanwhile
+    docs = loaded;
+    docsChanged();
+  } catch (err) {
+    setStatus(`Couldn’t load the example: ${err instanceof Error ? err.message : String(err)}`, 'error');
+  }
+}
+
+function setExample(ex: Example | null) {
+  example = ex;
+  ui.examples.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === ex?.id)));
+  const url = new URL(location.href);
+  if (ex) url.searchParams.set('example', ex.id);
+  else url.searchParams.delete('example');
+  history.replaceState(null, '', url);
+}
+
+function buildExampleChips() {
+  ui.examples.replaceChildren(
+    ...EXAMPLES.map((ex) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.dataset.id = ex.id;
+      b.textContent = ex.title;
+      b.title = ex.blurb;
+      b.setAttribute('aria-pressed', 'false');
+      b.onclick = () => loadExample(ex);
+      return b;
+    }),
   );
-  isExample = true;
-  docsChanged();
 }
 
 function docsChanged() {
@@ -149,8 +205,8 @@ function docsChanged() {
     }),
   );
   ui.clear.hidden = docs.length < 2;
-  ui.example.hidden = isExample;
-  ui.title.textContent = docs.length === 0 ? 'Compare documents at a glance' : isExample ? EXAMPLE_TITLE : 'Your documents';
+  ui.title.textContent = docs.length === 0 ? 'Compare documents at a glance' : example ? example.title : 'Your documents';
+  ui.blurb.textContent = docs.length && example ? example.blurb : '';
   run();
 }
 
@@ -162,7 +218,10 @@ function readOptions(): Partial<StormOptions> {
   return {
     mode,
     maxWords: Number(ui.words.value),
-    weighting: ui.weighting.value as StormOptions['weighting'],
+    distinctiveness: Number(ui.distinct.value) / 100,
+    sizeExponent: Number(ui.contrast.value) / 100,
+    verticalShare: Number(ui.vertical.value) / VERTICAL_STEPS,
+    markShared: selected('markShared') as StormOptions['markShared'],
     fadeCommonWords: ui.fade.checked,
     palette: selected('palette') as PaletteName,
     extraStopwords: ui.stop.value.split(/[\s,;]+/).filter(Boolean),
@@ -174,9 +233,21 @@ function readOptions(): Partial<StormOptions> {
 
 function syncControls() {
   const mode = selected('mode') as StormOptions['mode'];
-  ui.modehint.textContent = MODE_HINTS[mode];
   ui.fadeRow.hidden = mode !== 'coordinated';
   ui.wordsOut.textContent = ui.words.value;
+  const mark = selected('markShared') as StormOptions['markShared'];
+  const font = fontById(selected('font'));
+  ui.markhint.textContent =
+    mark === 'weight' && !font.spec.lightWeight
+      ? `${font.label} has only one weight, so this marks nothing. Pick another font to see it.`
+      : MARK_HINTS[mark];
+  const d = Number(ui.distinct.value);
+  ui.distinctOut.textContent = d === 0 ? 'Off' : `${d}%`;
+  const c = Number(ui.contrast.value);
+  ui.contrastOut.textContent = c < 100 ? 'Gentle' : c === 100 ? 'Original' : 'Dramatic';
+  const v = Number(ui.vertical.value);
+  ui.verticalOut.textContent = v === 0 ? 'None' : v === VERTICAL_STEPS ? 'All' : `${Math.round((100 * v) / VERTICAL_STEPS)}%`;
+  if (!ui.focus.classList.contains('active')) ui.focus.textContent = focusHint();
 }
 
 function optionsChanged() {
@@ -201,16 +272,16 @@ function run() {
   const request: StormRequest = {
     docs,
     options: readOptions(),
-    font: font.spec,
-    face: font.face,
-    files: absoluteFiles(font),
+    font: absoluteFaces(font),
   };
   const started = performance.now();
   setStatus(`Building ${docs.length} cloud${docs.length === 1 ? '' : 's'}…`, 'busy');
   if (!storm) renderSkeleton(docs.length);
   ui.grid.setAttribute('aria-busy', 'true');
 
-  const finish = (s: Storm) => {
+  const finish = async (s: Storm) => {
+    // The worker loaded the font for itself; the page needs it too, to draw.
+    await Promise.all([pageFont(font, false), pageFont(font, true)]).catch(() => {});
     if (id !== job) return;
     storm = s;
     stormFont = font;
@@ -244,7 +315,7 @@ function run() {
 
 /** Fallback for browsers that can't draw text in a worker: lay out on the page. */
 async function runOnPage(request: StormRequest, font: CloudFont): Promise<Storm> {
-  if (font.face) await loadFont(document.fonts, font.face, font.spec.weight ?? 400, font.files);
+  await Promise.all([pageFont(font, false), pageFont(font, true)]);
   await new Promise((r) => setTimeout(r, 30));
   const measurer = createCanvasMeasurer((w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h }), font.spec);
   return generateStorm(request.docs, request.options, measurer);
@@ -272,6 +343,7 @@ function setStatus(text: string, kind: 'info' | 'busy' | 'error' = 'info') {
 
 function renderSkeleton(n: number) {
   ui.empty.hidden = true;
+  ui.toolbar.hidden = false;
   ui.actions.hidden = true;
   const [w, h] = ui.aspect.value.split('x');
   ui.grid.style.setProperty('--aspect', `${w} / ${h}`);
@@ -283,6 +355,7 @@ function renderSkeleton(n: number) {
 
 function render() {
   ui.empty.hidden = !!storm || docs.length > 0;
+  ui.toolbar.hidden = docs.length === 0;
   ui.actions.hidden = !storm;
   if (!storm) {
     if (docs.length === 0) ui.grid.replaceChildren();
@@ -315,7 +388,7 @@ function focusWord(word: string | null) {
   if (!word || !storm) {
     highlight.textContent = '';
     ui.grid.classList.remove('focusing');
-    ui.focus.textContent = FOCUS_HINT;
+    ui.focus.textContent = focusHint();
     ui.focus.classList.remove('active');
     return;
   }
@@ -349,6 +422,9 @@ ui.unpin.onclick = () => {
 };
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && pinned) ui.unpin.click();
+  // R for a new layout, unless typing somewhere.
+  const typing = (e.target as Element).closest('input:not([type=range]):not([type=radio]):not([type=checkbox]), select, textarea');
+  if (e.key.toLowerCase() === 'r' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey && !ui.toolbar.hidden) ui.regen.click();
 });
 
 // ---------- Downloads ----------
@@ -406,25 +482,27 @@ document.addEventListener('drop', (e) => {
   if (e.dataTransfer?.files.length) addFiles(e.dataTransfer.files);
 });
 
-ui.example.onclick = ui.example2.onclick = loadExample;
+ui.example2.onclick = () => loadExample(DEFAULT_EXAMPLE);
 ui.clear.onclick = () => {
   docs = [];
-  isExample = false;
+  setExample(null);
   docsChanged();
 };
-ui.shuffle.onclick = () => {
+ui.regen.onclick = () => {
   ui.seed.value = String(Math.floor(Math.random() * 1e6));
-  optionsChanged();
+  clearTimeout(rerunTimer);
+  run();
 };
-for (const el of [ui.words, ui.weighting, ui.fade, ui.stop, ui.aspect, ui.seed]) {
+for (const el of [ui.words, ui.distinct, ui.contrast, ui.vertical, ui.fade, ui.stop, ui.aspect, ui.seed]) {
   el.addEventListener(el === ui.stop ? 'change' : 'input', optionsChanged);
 }
 
 buildPickers();
+buildExampleChips();
 document
-  .querySelectorAll('input[name=mode], input[name=font], input[name=palette]')
+  .querySelectorAll('input[name=mode], input[name=font], input[name=palette], input[name=markShared]')
   .forEach((r) => r.addEventListener('change', optionsChanged));
 
 syncControls();
-// Start with the example so the page shows what it does.
-loadExample();
+// Start with an example (?example=<id> picks one) so the page shows what it does.
+loadExample(exampleById(new URLSearchParams(location.search).get('example')) ?? DEFAULT_EXAMPLE);

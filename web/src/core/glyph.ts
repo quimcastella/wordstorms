@@ -29,7 +29,8 @@ export interface Glyph {
 
 /** Measures words. The browser and Node each provide one backed by a 2D canvas. */
 export interface GlyphMeasurer {
-  measure(text: string, fontSize: number, angle: Angle): Glyph;
+  /** `light`: in the font's light weight, if it has one. */
+  measure(text: string, fontSize: number, angle: Angle, light?: boolean): Glyph;
 }
 
 export function createMask(width: number, height: number, offsetX = 0, offsetY = 0): Mask {

@@ -14,7 +14,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "compare": "node scripts/compare-reference.ts"
+    "compare": "node scripts/compare-reference.ts",
+    "render-examples": "node scripts/render-examples.ts",
+    "build-corpora": "node scripts/build-corpora.ts"
   },
   "devDependencies": {
     "@napi-rs/canvas": "1.1.0",

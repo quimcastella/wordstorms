@@ -29,11 +29,17 @@ export const DEFAULT_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 export interface FontSpec {
   family: string;
   weight?: number;
+  /** Weight for light words; without one, light words use `weight`. */
+  lightWeight?: number;
 }
 
+/** The CSS font weight for a word. */
+export const fontWeight = (font: FontSpec, light = false): number =>
+  (light ? font.lightWeight : undefined) ?? font.weight ?? 400;
+
 /** The CSS `font` shorthand for a font at a size. */
-export function cssFont(font: FontSpec, size: number): string {
-  return `${font.weight ?? 400} ${size}px ${font.family}`;
+export function cssFont(font: FontSpec, size: number, light = false): string {
+  return `${fontWeight(font, light)} ${size}px ${font.family}`;
 }
 
 /**
@@ -51,14 +57,14 @@ export function createCanvasMeasurer(
   const cache = new Map<string, Glyph>();
 
   return {
-    measure(text: string, fontSize: number, angle: Angle): Glyph {
+    measure(text: string, fontSize: number, angle: Angle, light = false): Glyph {
       const size = Math.round(fontSize * 100) / 100;
-      const key = `${angle}|${size}|${text}`;
+      const key = `${angle}|${size}|${light ? 'l' : ''}|${text}`;
       const hit = cache.get(key);
       if (hit) return hit;
 
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.font = cssFont(spec, size);
+      ctx.font = cssFont(spec, size, light);
       ctx.textBaseline = 'alphabetic';
       const m = ctx.measureText(text);
       const left = m.actualBoundingBoxLeft;
@@ -84,7 +90,7 @@ export function createCanvasMeasurer(
       if (canvas.height < mh) canvas.height = mh;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.font = cssFont(spec, size);
+      ctx.font = cssFont(spec, size, light);
       ctx.textBaseline = 'alphabetic';
       ctx.fillStyle = '#000';
       const rad = (angle * Math.PI) / 180;

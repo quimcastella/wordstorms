@@ -10,7 +10,16 @@ import oswaldLatin from '@fontsource/oswald/files/oswald-latin-600-normal.woff2?
 import oswaldLatinExt from '@fontsource/oswald/files/oswald-latin-ext-600-normal.woff2?url';
 import zillaLatin from '@fontsource/zilla-slab/files/zilla-slab-latin-600-normal.woff2?url';
 import zillaLatinExt from '@fontsource/zilla-slab/files/zilla-slab-latin-ext-600-normal.woff2?url';
-import { DEFAULT_FONT, type FontSpec } from '../measure/canvas.ts';
+// Light weights, for words only one document uses. Anton has none.
+import bricolageLightLatin from '@fontsource/bricolage-grotesque/files/bricolage-grotesque-latin-300-normal.woff2?url';
+import bricolageLightLatinExt from '@fontsource/bricolage-grotesque/files/bricolage-grotesque-latin-ext-300-normal.woff2?url';
+import frauncesLightLatin from '@fontsource/fraunces/files/fraunces-latin-300-normal.woff2?url';
+import frauncesLightLatinExt from '@fontsource/fraunces/files/fraunces-latin-ext-300-normal.woff2?url';
+import oswaldLightLatin from '@fontsource/oswald/files/oswald-latin-300-normal.woff2?url';
+import oswaldLightLatinExt from '@fontsource/oswald/files/oswald-latin-ext-300-normal.woff2?url';
+import zillaLightLatin from '@fontsource/zilla-slab/files/zilla-slab-latin-300-normal.woff2?url';
+import zillaLightLatinExt from '@fontsource/zilla-slab/files/zilla-slab-latin-ext-300-normal.woff2?url';
+import { DEFAULT_FONT, fontWeight, type FontSpec } from '../measure/canvas.ts';
 
 // Unicode ranges from Fontsource's CSS for the latin and latin-ext subsets.
 const LATIN =
@@ -23,14 +32,20 @@ export interface FontFile {
   unicodeRange: string;
 }
 
-export interface CloudFont {
-  id: string;
-  label: string;
-  note: string;
+/** What it takes to load a font: its @font-face name and files. */
+export interface FontFaces {
   /** Name registered with @font-face; empty for system fonts. */
   face: string;
   spec: FontSpec;
   files: FontFile[];
+  /** Files for `spec.lightWeight`. */
+  lightFiles: FontFile[];
+}
+
+export interface CloudFont extends FontFaces {
+  id: string;
+  label: string;
+  note: string;
 }
 
 const files = (latin: string, latinExt: string): FontFile[] => [
@@ -44,16 +59,18 @@ export const FONTS: CloudFont[] = [
     label: 'Oswald',
     note: 'Condensed, packs tight',
     face: 'Oswald',
-    spec: { family: '"Oswald", "Arial Narrow", sans-serif', weight: 600 },
+    spec: { family: '"Oswald", "Arial Narrow", sans-serif', weight: 600, lightWeight: 300 },
     files: files(oswaldLatin, oswaldLatinExt),
+    lightFiles: files(oswaldLightLatin, oswaldLightLatinExt),
   },
   {
     id: 'bricolage',
     label: 'Bricolage',
     note: 'Modern grotesque',
     face: 'Bricolage Grotesque',
-    spec: { family: '"Bricolage Grotesque", system-ui, sans-serif', weight: 700 },
+    spec: { family: '"Bricolage Grotesque", system-ui, sans-serif', weight: 700, lightWeight: 300 },
     files: files(bricolageLatin, bricolageLatinExt),
+    lightFiles: files(bricolageLightLatin, bricolageLightLatinExt),
   },
   {
     id: 'anton',
@@ -62,52 +79,63 @@ export const FONTS: CloudFont[] = [
     face: 'Anton',
     spec: { family: '"Anton", Impact, sans-serif', weight: 400 },
     files: files(antonLatin, antonLatinExt),
+    lightFiles: [],
   },
   {
     id: 'fraunces',
     label: 'Fraunces',
     note: 'Soft serif',
     face: 'Fraunces',
-    spec: { family: '"Fraunces", Georgia, serif', weight: 600 },
+    spec: { family: '"Fraunces", Georgia, serif', weight: 600, lightWeight: 300 },
     files: files(frauncesLatin, frauncesLatinExt),
+    lightFiles: files(frauncesLightLatin, frauncesLightLatinExt),
   },
   {
     id: 'zilla',
     label: 'Zilla Slab',
     note: 'Slab, like the original',
     face: 'Zilla Slab',
-    spec: { family: '"Zilla Slab", Rockwell, serif', weight: 600 },
+    spec: { family: '"Zilla Slab", Rockwell, serif', weight: 600, lightWeight: 300 },
     files: files(zillaLatin, zillaLatinExt),
+    lightFiles: files(zillaLightLatin, zillaLightLatinExt),
   },
   {
     id: 'system',
     label: 'System',
     note: 'Your device’s sans',
     face: '',
-    spec: { family: DEFAULT_FONT, weight: 400 },
+    // Light if the device's font has a light weight (Helvetica Neue does).
+    spec: { family: DEFAULT_FONT, weight: 400, lightWeight: 300 },
     files: [],
+    lightFiles: [],
   },
 ];
 
 export const fontById = (id: string) => FONTS.find((f) => f.id === id) ?? FONTS[0];
 
-/** Absolute URLs, so a worker can load them too. */
-export const absoluteFiles = (font: CloudFont): FontFile[] =>
-  font.files.map((f) => ({ ...f, url: new URL(f.url, location.href).href }));
+/** With absolute URLs, so a worker can load it too. */
+export function absoluteFaces({ face, spec, files, lightFiles }: FontFaces): FontFaces {
+  const abs = (fs: FontFile[]) => fs.map((f) => ({ ...f, url: new URL(f.url, location.href).href }));
+  return { face, spec, files: abs(files), lightFiles: abs(lightFiles) };
+}
+
+/** Every weight of a font, with its files. */
+const weights = (font: FontFaces): [number, FontFile[]][] => [
+  [fontWeight(font.spec), font.files],
+  ...(font.lightFiles.length ? [[fontWeight(font.spec, true), font.lightFiles] as [number, FontFile[]]] : []),
+];
 
 /** Registers a font's faces with a FontFaceSet (document.fonts or a worker's self.fonts) and waits for them. */
-export async function loadFont(
-  fonts: FontFaceSet,
-  face: string,
-  weight: number,
-  fontFiles: FontFile[],
-): Promise<void> {
+export async function loadFont(fonts: FontFaceSet, font: FontFaces): Promise<void> {
+  if (!font.face) return;
   await Promise.all(
-    fontFiles.map(async ({ url, unicodeRange }) => {
-      const ff = new FontFace(face, `url(${url})`, { weight: String(weight), unicodeRange });
-      fonts.add(ff);
-      await ff.load();
-    }),
+    weights(font).flatMap(([weight, fontFiles]) =>
+      fontFiles.map(async ({ url, unicodeRange }) => {
+        const ff = new FontFace(font.face, `url(${url})`, { weight: String(weight), unicodeRange });
+        fonts.add(ff);
+        await ff.load();
+      }),
+    ),
   );
 }
 
@@ -119,15 +147,17 @@ export function embeddedFontCss(font: CloudFont): Promise<string> {
   let css = embedded.get(font.id);
   if (!css) {
     css = Promise.all(
-      font.files.map(async ({ url, unicodeRange }) => {
-        const buf = new Uint8Array(await (await fetch(url)).arrayBuffer());
-        let bin = '';
-        for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
-        return (
-          `@font-face{font-family:"${font.face}";font-weight:${font.spec.weight};` +
-          `src:url(data:font/woff2;base64,${btoa(bin)}) format("woff2");unicode-range:${unicodeRange}}`
-        );
-      }),
+      weights(font).flatMap(([weight, fontFiles]) =>
+        fontFiles.map(async ({ url, unicodeRange }) => {
+          const buf = new Uint8Array(await (await fetch(url)).arrayBuffer());
+          let bin = '';
+          for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+          return (
+            `@font-face{font-family:"${font.face}";font-weight:${weight};` +
+            `src:url(data:font/woff2;base64,${btoa(bin)}) format("woff2");unicode-range:${unicodeRange}}`
+          );
+        }),
+      ),
     ).then((rules) => rules.join(''));
     embedded.set(font.id, css);
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyTfIdf, countWords, mergePlurals, normalizeWeights, sortCounts, tokenize } from '../src/core/text.ts';
+import { applyKeyness, applyTfIdf, countWords, mergePlurals, normalizeWeights, sortCounts, tokenize } from '../src/core/text.ts';
 
 const opts = { textCase: 'lower', stopwords: 'english', extraStopwords: [], excludeNumbers: true } as const;
 
@@ -20,6 +20,14 @@ describe('countWords', () => {
   it('counts possessives with their noun, but keeps contractions as stop words', () => {
     const counts = countWords("Romney's plan, Romney said. It's what's next", opts);
     expect(Object.fromEntries(counts)).toEqual({ romney: 2, plan: 1, next: 1 });
+  });
+
+  it('drops filler and archaic words with the extended list, but keeps content words', () => {
+    const text = 'Thou hast come now, my lord; one must go, and the king hath said so. Mr Darcy went home.';
+    const extended = countWords(text, { ...opts, stopwords: 'extended' });
+    expect([...extended.keys()].sort()).toEqual(['darcy', 'home', 'king', 'lord']);
+    const original = countWords(text, opts);
+    expect(original.has('thou')).toBe(true);
   });
 
   it('honors extra stop words', () => {
@@ -54,5 +62,20 @@ describe('applyTfIdf', () => {
     const [a] = applyTfIdf([new Map([['common', 5], ['rare', 1]]), new Map([['common', 2]])]);
     expect(a.get('common')).toBe(0);
     expect(a.get('rare')).toBeCloseTo(1);
+  });
+});
+
+describe('applyKeyness', () => {
+  it('keeps evenly used words and boosts words one document uses more', () => {
+    const docs = [new Map([['even', 10], ['mine', 10]]), new Map([['even', 10], ['theirs', 10]])];
+    const [a] = applyKeyness(docs, 1);
+    expect(a.get('even')).toBeCloseTo(10); // same rate as the whole corpus
+    expect(a.get('mine')).toBeCloseTo(20); // twice the corpus rate
+    expect(applyKeyness(docs, 0.5)[0].get('mine')).toBeCloseTo(10 * Math.SQRT2);
+  });
+
+  it('does nothing at strength 0', () => {
+    const docs = [new Map([['x', 3]]), new Map([['y', 4]])];
+    expect(applyKeyness(docs, 0)).toEqual(docs);
   });
 });

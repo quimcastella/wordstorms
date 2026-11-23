@@ -13,7 +13,30 @@ up upon down in out on off over under again further then once here there when wh
 all any both each few more most other some such no nor not only own same so than too very
 say says said shall`;
 
+// Port addition: high-frequency verbs, adverbs and determiners that crowd out
+// content words in longer texts, early modern English function words (for
+// Shakespeare and the like), and title abbreviations. Nouns and adjectives
+// (man, time, good, little) are kept; the idf fade already mutes the ones
+// every document shares.
+const EXTENDED = `${ENGLISH}
+one two also may might must shall will can need upon whilst though although however yet
+still even ever never always often perhaps rather quite almost already just really indeed
+now soon well much many every another either neither whether else enough instead
+like unto within without towards toward across along around among amongst beside besides
+come comes came coming go goes went gone going get gets got getting make makes made making
+take takes took taken taking give gives gave given giving put puts let lets see sees saw
+seen seeing look looks looked know knows knew known think thinks thought tell tells told
+seem seems seemed find found keep kept leave left want wanted ask asked
+thing things something nothing anything everything someone anyone everyone nobody somebody
+way ways yes oh ah
+thou thee thy thine thyself ye hath doth dost art hast shalt wilt wouldst couldst shouldst
+tis twas th o ay nay ere ne'er e'er o'er e'en 'tis 'twas
+mr mrs ms dr st`;
+
 export const STOPWORDS = {
+  /** The common English words most people expect a word cloud to skip. */
+  extended: new Set(EXTENDED.split(/\s+/).filter(Boolean)),
+  /** The original Java version's (cue.language) list. */
   english: new Set(ENGLISH.split(/\s+/)),
   none: new Set<string>(),
 };

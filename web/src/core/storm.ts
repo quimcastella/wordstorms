@@ -1,10 +1,10 @@
 import { Board } from './board.ts';
 import { hsbToHex } from './color.ts';
 import { boxMask, type Angle, type Glyph, type GlyphMeasurer, type Mask } from './glyph.ts';
-import { PALETTES, type PaletteName } from './palettes.ts';
+import { PALETTES, type Palette, type PaletteName } from './palettes.ts';
 import { createRng, type Rng } from './random.ts';
 import type { StopwordLanguage } from './stopwords.ts';
-import { applyTfIdf, countWords, normalizeWeights, sortCounts, type TextCase } from './text.ts';
+import { applyKeyness, applyTfIdf, countWords, normalizeWeights, sortCounts, type TextCase } from './text.ts';
 
 export interface Doc {
   name: string;
@@ -28,8 +28,25 @@ export interface StormOptions {
   stopwords: StopwordLanguage;
   extraStopwords: string[];
   excludeNumbers: boolean;
-  /** `tfidf` favors words that are distinctive to each document. */
+  /** `tfidf` multiplies counts by idf, so words in every document drop out. */
   weighting: 'tf' | 'tfidf';
+  /**
+   * 0–1: how much to favor words a document uses more than the others do
+   * (keyness). Unlike tf-idf, words every document uses stay, so clouds keep
+   * shared words to coordinate.
+   */
+  distinctiveness: number;
+  /** Font size grows with count^sizeExponent: 1 is linear (Java), above 1 is more dramatic, below 1 evens sizes out. */
+  sizeExponent: number;
+  /** Share of words drawn vertically (Java: 2/7). */
+  verticalShare: number;
+  /**
+   * How words several documents share stand apart from words only one uses.
+   * `none` (default): a random palette color per word, as in Java.
+   * `weight`: words only one document uses are drawn in the font's light weight.
+   * `warmth`: shared words take warm palette colors, the rest cool ones.
+   */
+  markShared: 'weight' | 'warmth' | 'none';
   /** Coordinated only: words shared by many clouds are drawn more transparent. */
   fadeCommonWords: boolean;
   /** Word colors and background; `classic` is the original random HSB coloring. */
@@ -44,22 +61,38 @@ export interface StormOptions {
 
 export const DEFAULT_OPTIONS: StormOptions = {
   mode: 'coordinated',
-  maxWords: 25,
+  maxWords: 35,
   width: 640,
   height: 480,
   minFontSize: 8,
   maxFontSize: 65,
   seed: 123456,
   textCase: 'lower',
-  stopwords: 'english',
+  stopwords: 'extended',
   extraStopwords: [],
   excludeNumbers: true,
   weighting: 'tf',
-  fadeCommonWords: true,
+  distinctiveness: 0.2,
+  sizeExponent: 1,
+  verticalShare: 2 / 7,
+  markShared: 'none',
+  fadeCommonWords: false,
   palette: 'storm',
   tolerance: 50,
   maxIterations: 5,
   maxForceIterations: 20000,
+};
+
+/** Overrides that reproduce the original Java version's word choice and look. */
+export const JAVA_OPTIONS: Partial<StormOptions> = {
+  maxWords: 25,
+  stopwords: 'english',
+  distinctiveness: 0,
+  sizeExponent: 1,
+  verticalShare: 2 / 7,
+  markShared: 'none',
+  fadeCommonWords: true,
+  palette: 'classic',
 };
 
 export interface PlacedWord {
@@ -70,6 +103,8 @@ export interface PlacedWord {
   angle: Angle;
   color: string;
   opacity: number;
+  /** Drawn in the font's light weight (with `markShared: 'weight'`, words only one cloud has). */
+  light: boolean;
   /** Top-left of the ink's bounding box. */
   x: number;
   y: number;
@@ -108,7 +143,6 @@ export interface Storm {
 
 export type Progress = (message: string) => void;
 
-const ANGLES: Angle[] = [0, 0, 0, 0, 0, 90, -90];
 const MAX_ATTEMPTS = 5000;
 
 interface Entry {
@@ -128,6 +162,7 @@ interface WordState {
   angle: Angle;
   color: string;
   opacity: number;
+  light: boolean;
   x: number;
   y: number;
   hasLocation: boolean;
@@ -191,8 +226,10 @@ export function generateStorm(
 function selectWords(docs: Doc[], opts: StormOptions): WordState[][] {
   let counts = docs.map((d) => countWords(d.text, opts));
   if (opts.weighting === 'tfidf') counts = applyTfIdf(counts);
+  if (opts.distinctiveness > 0) counts = applyKeyness(counts, opts.distinctiveness);
+  const e = opts.sizeExponent;
   return counts.map((c, cloud) =>
-    normalizeWeights(sortCounts(c).slice(0, opts.maxWords)).map(
+    normalizeWeights(sortCounts(c).slice(0, opts.maxWords).map(([w, n]): [string, number] => [w, n ** e])).map(
       ([text, weight]): WordState => ({
         text,
         cloud,
@@ -201,6 +238,7 @@ function selectWords(docs: Doc[], opts: StormOptions): WordState[][] {
         angle: 0,
         color: '#000000',
         opacity: 1,
+        light: false,
         x: 0,
         y: 0,
         hasLocation: false,
@@ -228,9 +266,23 @@ function buildIndex(clouds: WordState[][]): Map<string, Entry> {
   return entries;
 }
 
+function randomAngle(rng: Rng, verticalShare: number): Angle {
+  const u = rng.uniform(1);
+  return u < verticalShare ? (u < verticalShare / 2 ? 90 : -90) : 0;
+}
+
 function randomColor(rng: Rng, colors: readonly string[]): string {
   if (colors.length) return colors[rng.int(colors.length)];
   return hsbToHex(rng.uniform(256) / 256, 200 / 255, (50 + rng.uniform(150)) / 255);
+}
+
+/** A warm color for a shared word, a cool one for a word only one cloud has. */
+function warmthColor(rng: Rng, palette: Palette, shared: boolean): string {
+  const list = shared ? palette.warm : palette.cool;
+  if (list.length) return list[rng.int(list.length)];
+  // Classic: random HSB, with hue in magenta–red–orange (warm) or green–blue–indigo (cool).
+  const hue = shared ? (0.88 + rng.uniform(0.24)) % 1 : 0.4 + rng.uniform(0.32);
+  return hsbToHex(hue, 200 / 255, (50 + rng.uniform(150)) / 255);
 }
 
 /** Opacity from idf: ~40% for words in every cloud, 100% for distinctive ones. */
@@ -244,19 +296,23 @@ function assignStyle(
   rng: Rng,
   coordinated: boolean,
 ): void {
-  const colors = (PALETTES[opts.palette] ?? PALETTES.storm).colors;
+  const palette = PALETTES[opts.palette] ?? PALETTES.storm;
+  const mark = clouds.length > 1 ? opts.markShared : 'none';
+  const color = (e: Entry) =>
+    mark === 'warmth' ? warmthColor(rng, palette, e.words.length > 1) : randomColor(rng, palette.colors);
   for (const ws of clouds) {
     for (const w of ws) {
+      w.light = mark === 'weight' && w.entry.words.length === 1;
       if (coordinated) {
         const e = w.entry;
-        e.angle ??= ANGLES[rng.int(ANGLES.length)];
-        e.color ??= randomColor(rng, colors);
+        e.angle ??= randomAngle(rng, opts.verticalShare);
+        e.color ??= color(e);
         w.angle = e.angle;
         w.color = e.color;
         w.opacity = opts.fadeCommonWords ? idfOpacity(e.idf) : 1;
       } else {
-        w.angle = ANGLES[rng.int(ANGLES.length)];
-        w.color = randomColor(rng, colors);
+        w.angle = randomAngle(rng, opts.verticalShare);
+        w.color = color(w.entry);
       }
     }
   }
@@ -342,7 +398,7 @@ class Layout {
   }
 
   glyph(w: WordState): Glyph {
-    return this.measurer.measure(w.text, this.fontSize(w), w.angle);
+    return this.measurer.measure(w.text, this.fontSize(w), w.angle, w.light);
   }
 
   private boxMaskFor(g: Glyph): Mask {
@@ -595,6 +651,7 @@ class Layout {
             angle: w.angle,
             color: w.color,
             opacity: w.opacity,
+            light: w.light,
             x: (w.x - minX) * scale + dx,
             y: (w.y - minY) * scale + dy,
             width: g.width * scale,

@@ -70,6 +70,29 @@ export function applyTfIdf(docs: Map<string, number>[]): Map<string, number>[] {
 }
 
 /**
+ * Keyness: multiplies each count by (rate in this document / rate in the whole
+ * corpus)^strength. Words used evenly keep their count; words a document uses
+ * more than the others grow, and words it uses less shrink. Unlike tf-idf, a
+ * word every document uses can still matter if one uses it much more.
+ */
+export function applyKeyness(docs: Map<string, number>[], strength = 1): Map<string, number>[] {
+  if (docs.length < 2) return docs;
+  const totals = docs.map((d) => [...d.values()].reduce((s, n) => s + n, 0));
+  const all = totals.reduce((s, n) => s + n, 0);
+  const corpus = new Map<string, number>();
+  for (const doc of docs) for (const [w, n] of doc) corpus.set(w, (corpus.get(w) ?? 0) + n);
+  return docs.map(
+    (doc, i) =>
+      new Map(
+        [...doc].map(([w, n]) => {
+          const ratio = n / totals[i] / (corpus.get(w)! / all);
+          return [w, n * ratio ** strength] as [string, number];
+        }),
+      ),
+  );
+}
+
+/**
  * Weights for the kept words: mean weight 0.6, proportional to count
  * (`1.2 · count · n / (2 · Σcount)`), as in the Java version.
  */

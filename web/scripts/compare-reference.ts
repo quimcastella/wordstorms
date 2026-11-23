@@ -7,7 +7,7 @@ import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { layoutMetrics, vocabularyAgreement, type Layout } from '../src/core/metrics.ts';
-import { generateStorm, type Mode, type Storm } from '../src/core/storm.ts';
+import { generateStorm, JAVA_OPTIONS, type Mode, type Storm } from '../src/core/storm.ts';
 import { createCanvasMeasurer } from '../src/measure/canvas.ts';
 import { stormToSvg } from '../src/render/svg.ts';
 
@@ -60,7 +60,8 @@ for (const mode of ['independent', 'coordinated'] as Mode[]) {
   };
 
   // One seed is noisy, so average the port over several.
-  const storms = SEEDS.map((seed) => generateStorm(docs, { mode, seed }, measurer));
+  // The Java version's stop word list, so word choice is comparable.
+  const storms = SEEDS.map((seed) => generateStorm(docs, { ...JAVA_OPTIONS, mode, seed }, measurer));
   const storm = storms[0];
   writeFileSync(join(outDir, `${mode}.svg`), stormToSvg(storm, { font }));
   writeFileSync(join(outDir, `${mode}.json`), JSON.stringify(storm, null, 1));
