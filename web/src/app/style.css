@@ -1326,53 +1326,13 @@ button.big svg {
   color: var(--muted);
 }
 
-.foot-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
-  gap: 1.5rem 3rem;
-}
-
-.foot-about p {
+.site-foot p {
   margin: 0 0 0.6rem;
-  max-width: 52ch;
+  max-width: 80ch;
 }
 
-.sig {
-  color: var(--text);
-  font-size: 1rem;
-}
-
-.sig strong {
-  font-family: var(--display);
-}
-
-.cite-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-}
-
-.cite-head h3 {
-  margin: 0;
-  font-size: 0.95rem;
-  color: var(--text);
-}
-
-#bibtex {
-  margin: 0;
-  padding: 0.9rem 1rem;
-  overflow-x: auto;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font: 0.78rem/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  color: var(--text);
-}
-
-.credits {
-  margin: 1.8rem 0 0;
+.site-foot .credits {
+  margin: 1.2rem 0 0;
   max-width: 90ch;
   color: var(--faint);
   font-size: 0.82rem;

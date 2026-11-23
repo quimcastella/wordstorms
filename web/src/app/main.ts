@@ -59,7 +59,6 @@ const ui = {
   dlPng: $<HTMLButtonElement>('dlPng'),
   dlJson: $<HTMLButtonElement>('dlJson'),
   copyCite: $<HTMLButtonElement>('copyCite'),
-  bibtex: $('bibtex'),
 };
 
 const MODE_HINTS = {
@@ -724,8 +723,16 @@ ui.regen.onclick = () => {
 for (const el of [ui.words, ui.distinct, ui.contrast, ui.vertical, ui.fade, ui.stop, ui.aspect, ui.seed]) {
   el.addEventListener(el === ui.stop ? 'change' : 'input', optionsChanged);
 }
+const BIBTEX = `@inproceedings{castella2014wordstorms,
+  title     = {Word Storms: Multiples of Word Clouds for Visual Comparison of Documents},
+  author    = {Castella, Quim and Sutton, Charles},
+  booktitle = {Proceedings of the 23rd International Conference on World Wide Web (WWW)},
+  year      = {2014},
+  note      = {arXiv:1301.0503}
+}`;
+
 ui.copyCite.onclick = async () => {
-  await navigator.clipboard.writeText(ui.bibtex.textContent ?? '');
+  await navigator.clipboard.writeText(BIBTEX);
   ui.copyCite.textContent = 'Copied';
   setTimeout(() => (ui.copyCite.textContent = 'Copy BibTeX'), 1500);
 };
