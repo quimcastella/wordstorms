@@ -1,7 +1,7 @@
 import type { Cloud, PlacedWord, Storm } from '../core/storm.ts';
 import { DEFAULT_FONT, fontWeight, type FontSpec } from '../measure/canvas.ts';
 
-const escapeXml = (s: string) =>
+export const escapeXml = (s: string) =>
   s.replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]!);
 
 const num = (n: number) => String(Math.round(n * 100) / 100);
