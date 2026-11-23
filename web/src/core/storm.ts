@@ -316,7 +316,7 @@ interface Field {
 /** Builds a word storm: one cloud per document, laid out together. */
 export function generateStorm(
   docs: Doc[],
-  options: Partial<StormOptions>,
+  options: Partial<StormOptions> = {},
   measurer: GlyphMeasurer,
   onProgress: Progress = () => {},
 ): Storm {

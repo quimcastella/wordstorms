@@ -3,4 +3,5 @@ dist/
 out/
 .cache/
 dist-cli/
+dist-lib/
 wordstorm/

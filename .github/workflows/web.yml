@@ -12,10 +12,16 @@ permissions:
 defaults:
   run:
     working-directory: web
+    shell: bash
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # The command line and the library run on users' machines, so test all three systems.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -30,12 +36,30 @@ jobs:
         run: |
           npm run storm -- --example holmes --format svg,png,html,json --out out/ci-storm
           test "$(ls out/ci-storm | wc -l)" -eq 10
-      - name: Packaged command line smoke test
+      - name: Packaged command line and library smoke test
         run: |
           npm pack --pack-destination "$RUNNER_TEMP"
           cd "$RUNNER_TEMP" && npm init -y && npm install ./wordstorms-*.tgz
           npx wordstorms --example holmes
           test -f wordstorm/index.html && test "$(ls wordstorm | wc -l)" -eq 9
+          node --input-type=module -e "
+            import { generateStorm, stormToSvg } from 'wordstorms/node';
+            import * as main from 'wordstorms';
+            const storm = generateStorm([{ name: 'a', text: 'river stone river' }, { name: 'b', words: { river: 2, hill: 1 } }]);
+            if (!stormToSvg(storm).startsWith('<svg') || typeof main.cropStorm !== 'function') process.exit(1);
+            console.log('library ok', storm.clouds.map((c) => c.words.length));
+          "
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
       - run: npx vite build
       - uses: actions/upload-pages-artifact@v4
         with:
@@ -47,7 +71,7 @@ jobs:
     # wordstorms.org, with the domain's DNS pointed at GitHub Pages as GitHub
     # describes there. The build uses relative paths, so a sub-path works too.
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
-    needs: test
+    needs: [test, build]
     runs-on: ubuntu-latest
     permissions:
       pages: write
