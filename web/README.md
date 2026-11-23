@@ -59,7 +59,7 @@ wordstorms path/to/folder
 | `--separate` | Lay out each cloud on its own, like an ordinary word cloud, instead of as a storm | |
 | `-w, --words <n>` | Words per cloud; common English words ("the", "and", "said") are always left out | 35 |
 | `-d, --distinct <0-100>` | Favor words a document uses more than the others, in %. Unlike tf-idf, words every document uses can still appear, so there are shared words to line up | 20 |
-| `--contrast <0.5-1.5>` | Size differences: 1 is the original scale, higher is more dramatic | 1 |
+| `--contrast <0.1-3>` | Size differences: 1 is the original scale, higher is more dramatic (the site's slider covers 0.5–1.5) | 1 |
 | `--vertical <0-1>` | Share of vertical words | 0.29 |
 | `--mark <how>` | Set shared words apart: `none`, `weight` (words only one document uses are drawn thin) or `warmth` (warm colors for shared words) | `none` |
 | `-p, --palette <name>` | `storm`, `ocean`, `sunset`, `crayon`, `forest`, `midnight`, `parchment`, `ink`, `classic` | `storm` |
@@ -67,7 +67,8 @@ wordstorms path/to/folder
 | `--size <WxH>` | Cloud size in pixels | `640x480` |
 | `--ignore <words>` | Extra words to leave out, comma-separated | |
 | `-s, --seed <n>` | Layout number; the same number gives the same layout | 123456 |
-| `--example <id>` | Use a built-in example's documents and look; other options override it | |
+| `--example <id>` | Use a built-in example's documents and look instead of files; other options override it | |
+| `-v, --version` | Show the version | |
 
 ## How it works
 
