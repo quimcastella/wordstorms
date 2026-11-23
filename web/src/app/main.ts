@@ -3,6 +3,7 @@ import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
 import '@fontsource/bricolage-grotesque/700.css';
 import { strToU8, zipSync, type Zippable } from 'fflate';
+import { LANGUAGES, type Language } from '../core/language.ts';
 import { PALETTES, type PaletteName } from '../core/palettes.ts';
 import type { Storm, StormOptions, TextDoc } from '../core/storm.ts';
 import { cloudFileNames, cropStorm, stormToJson } from '../render/export.ts';
@@ -28,6 +29,13 @@ const ui = {
   browse: $<HTMLButtonElement>('browse'),
   startFrom: $('startFrom'),
   clear: $<HTMLButtonElement>('clear'),
+  paste: $<HTMLDetailsElement>('paste'),
+  pasteName: $<HTMLInputElement>('pasteName'),
+  pasteText: $<HTMLTextAreaElement>('pasteText'),
+  pasteAdd: $<HTMLButtonElement>('pasteAdd'),
+  pasteOpen: $<HTMLButtonElement>('pasteOpen'),
+  language: $<HTMLSelectElement>('language'),
+  languageHint: $('languageHint'),
   doclist: $<HTMLUListElement>('doclist'),
   words: $<HTMLInputElement>('words'),
   wordsOut: $<HTMLOutputElement>('wordsOut'),
@@ -73,6 +81,12 @@ const MARK_HINTS = {
   none: 'Each word gets a random color from the palette, like in the original.',
   weight: 'Words that only one document uses are drawn thin, and shared words stay bold.',
   warmth: 'Shared words get warm colors and the rest get cool ones.',
+};
+const LANGUAGE_HINTS: Record<Language, string> = {
+  english: 'Leaves out common English words like “the”, “and” and “said”.',
+  spanish: 'Leaves out common Spanish words like “de”, “que” and “los”.',
+  catalan: 'Leaves out common Catalan words, and splits l’, d’ and pronouns like -ho off the words they’re attached to.',
+  none: 'Every word counts, including “the” and single letters. List words to leave out below.',
 };
 const FOCUS_HINT = 'Hover over a word to find it in the other clouds, or click to pin it.';
 const focusHint = () => `${MODE_HINTS[selected('mode') as StormOptions['mode']]} ${FOCUS_HINT}`;
@@ -140,7 +154,9 @@ const selected = (name: string) => (document.querySelector(`input[name=${name}]:
 
 /** The settings controls under Make your own (not the file input). */
 const controlEls = () =>
-  [...ui.createPane.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')].filter((el) => el !== ui.files);
+  [...ui.createPane.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')].filter(
+    (el) => el !== ui.files && !ui.paste.contains(el),
+  );
 const isToggle = (el: HTMLInputElement | HTMLSelectElement): el is HTMLInputElement =>
   el instanceof HTMLInputElement && (el.type === 'radio' || el.type === 'checkbox');
 
@@ -234,6 +250,7 @@ function applyLook({ font, options: o }: ExampleLook) {
   ui.aspect.value = `${o.width}x${o.height}`;
   ui.seed.value = String(o.seed);
   ui.stop.value = '';
+  ui.language.value = 'english';
   ui.fade.checked = false;
   syncControls();
 }
@@ -261,7 +278,7 @@ function explainLook({ font, options: o }: ExampleLook) {
     ['Size differences', sizeLabel(Math.round(o.sizeExponent * 100)), 'How much bigger the most frequent words get.'],
     ['Vertical words', verticalLabel(Math.round(o.verticalShare * VERTICAL_STEPS)), 'How many words are turned sideways. A few help the clouds pack tighter.'],
     ['Cloud shape', shape, ''],
-    ['Layout number', String(o.seed), 'Picks one of many possible layouts. The same number always gives the same one.'],
+    ['Layout number (seed)', String(o.seed), 'Picks one of many possible layouts. The same number always gives the same one.'],
   ];
   ui.explain.replaceChildren(
     ...rows.flatMap(([term, value, note]) => {
@@ -321,7 +338,28 @@ async function addFiles(list: FileList | File[]) {
     setStatus('Those don’t look like text files. Use .txt files, one per document.', 'error');
     return;
   }
-  const added = await Promise.all(files.map(async (f) => ({ name: f.name.replace(/\.[^.]+$/, ''), text: await f.text() })));
+  addDocs(await Promise.all(files.map(async (f) => ({ name: f.name.replace(/\.[^.]+$/, ''), text: await f.text() }))));
+}
+
+/** Adds pasted text as a document, named by the user or "Text n". */
+function addPasted() {
+  const text = ui.pasteText.value;
+  if (!text.trim()) {
+    setStatus('Paste some text first.', 'error');
+    ui.pasteText.focus();
+    return;
+  }
+  const taken = new Set((createFrom ? [] : docs).map((d) => d.name));
+  let name = ui.pasteName.value.trim();
+  if (!name) for (let n = taken.size + 1; !name || taken.has(name); n++) name = `Text ${n}`;
+  addDocs([{ name, text }]);
+  ui.pasteName.value = '';
+  ui.pasteText.value = '';
+  ui.pasteText.focus();
+}
+
+/** Adds documents under Make your own; ones with the name of an existing document replace it. */
+function addDocs(added: TextDoc[]) {
   if (view !== 'create') {
     // Dropping files while looking at examples starts your own storm, in the example's look.
     createControls = saveControls();
@@ -396,6 +434,7 @@ function readOptions(): Partial<StormOptions> {
     width,
     height,
     seed: Number(ui.seed.value) || 0,
+    ...LANGUAGES[ui.language.value as Language],
   };
 }
 
@@ -413,6 +452,7 @@ function syncControls() {
   ui.distinctOut.textContent = d === 0 ? 'Off' : `${d}%`;
   ui.contrastOut.textContent = sizeLabel(Number(ui.contrast.value));
   ui.verticalOut.textContent = verticalLabel(Number(ui.vertical.value));
+  ui.languageHint.textContent = LANGUAGE_HINTS[ui.language.value as Language];
   if (!ui.focus.classList.contains('active')) ui.focus.textContent = focusHint();
 }
 
@@ -654,6 +694,15 @@ ui.tabExamples.onclick = () => view !== 'examples' && setView('examples');
 ui.tabCreate.onclick = () => view !== 'create' && setView('create');
 ui.tweak.onclick = () => tweakExample(example);
 ui.browse.onclick = () => ui.files.click();
+ui.pasteAdd.onclick = addPasted;
+ui.pasteText.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addPasted();
+});
+ui.pasteOpen.onclick = () => {
+  ui.paste.open = true;
+  ui.paste.scrollIntoView({ block: 'nearest' });
+  ui.pasteText.focus();
+};
 window.addEventListener('hashchange', () => {
   if (location.hash === '#create' && view !== 'create') setView('create');
   else if (location.hash === '#examples' && view !== 'examples') setView('examples');
@@ -692,7 +741,7 @@ ui.regen.onclick = () => {
   clearTimeout(rerunTimer);
   run();
 };
-for (const el of [ui.words, ui.distinct, ui.contrast, ui.vertical, ui.fade, ui.stop, ui.aspect, ui.seed]) {
+for (const el of [ui.words, ui.distinct, ui.contrast, ui.vertical, ui.fade, ui.stop, ui.language, ui.aspect, ui.seed]) {
   el.addEventListener(el === ui.stop ? 'change' : 'input', optionsChanged);
 }
 const BIBTEX = `@inproceedings{castella2014wordstorms,
