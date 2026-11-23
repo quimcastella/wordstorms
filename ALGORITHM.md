@@ -224,6 +224,24 @@ positions and sizes by `min(W / boxW, H / boxH)`, and center the result in the
 frame. Every cloud gets the same transform, so a shared word stays at the same
 spot across clouds.
 
+## Measuring a layout
+
+`storm.stats` reports, besides timings and iteration counts:
+
+- `sharedOffset`: for every word placed in two or more clouds, the distance
+  from each copy's center to the mean of its copies' centers, in px of the
+  output frame (`mean` and `max`). This is the alignment the storm is for:
+  on the built-in examples it is about 10–30 px for a storm and over 110 px
+  for separate clouds.
+- `selectedWords` and `placedWords`: words chosen across all clouds, and how
+  many fit.
+- `overlap`: shared words are the only words moved without a collision check
+  (in 4b), so they're the only ones that can overlap. `pairs` counts pairs of
+  shared words in one cloud whose boxes still intersect, and `maxDepth` is the
+  deepest such overlap, in px. On the examples it stays under 1 px.
+- `forceConverged`: false if 4b stopped at `maxForceIterations` rather than
+  settling.
+
 ## Randomness
 
 All randomness comes from one seeded generator (mulberry32, with Box–Muller

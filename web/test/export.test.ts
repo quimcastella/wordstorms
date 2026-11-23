@@ -27,7 +27,17 @@ const storm = (clouds: Cloud[]): Storm => ({
   height: 480,
   background: '#ffffff',
   clouds,
-  stats: { passes: 1, forceIterations: 0, shrink: 1, millis: 0 },
+  stats: {
+    passes: 1,
+    forceIterations: 0,
+    forceConverged: true,
+    shrink: 1,
+    selectedWords: 0,
+    placedWords: 0,
+    sharedOffset: { mean: 0, max: 0 },
+    overlap: { pairs: 0, maxDepth: 0 },
+    millis: 0,
+  },
   options: DEFAULT_OPTIONS,
 });
 

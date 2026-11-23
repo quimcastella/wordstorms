@@ -280,7 +280,9 @@ if (formats.includes('json')) write('storm.json', stormToJson(storm, { crop, fon
 const shared = new Set(storm.clouds.flatMap((c) => c.words.filter((w) => w.cloudCount > 1).map((w) => w.text))).size;
 const skipped = storm.clouds.reduce((n, c) => n + c.skipped.length, 0);
 console.log(
-  `${storm.clouds.length} clouds, ${shared} shared words${skipped ? `, ${skipped} words didn't fit` : ''}, ` +
+  `${storm.clouds.length} clouds, ${shared} shared words` +
+    (shared ? ` (${storm.stats.sharedOffset.mean.toFixed(0)} px from their average spot, on average)` : '') +
+    `${skipped ? `, ${skipped} words didn't fit` : ''}, ` +
     `in ${((performance.now() - started) / 1000).toFixed(1)} s`,
 );
 console.log(`Wrote ${written.length} ${written.length === 1 ? 'file' : 'files'} to ${out}`);
