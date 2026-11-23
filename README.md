@@ -19,7 +19,7 @@ behind the site, a command-line tool, and a TypeScript library.
 ## Getting started
 
 You need [Node.js](https://nodejs.org) 22.18 or newer. Everything lives in
-`web/`, and every command below runs from there.
+`web/`, and the `npm run` commands below run from there.
 
 ```bash
 git clone https://github.com/quimcastella/wordstorms.git
@@ -29,33 +29,37 @@ npm install
 
 ## Command line
 
-`npm run storm` makes a storm from text files and writes one SVG and one PNG
-per cloud, all the same size so shared words line up when you stack them.
+`wordstorms` makes a storm from text files and writes one SVG and one PNG per
+cloud into `./wordstorm`, all the same size so shared words line up when you
+stack them. It needs only Node.js, not a clone:
 
 ```bash
 # One cloud per file in a folder
-npm run storm -- path/to/folder
+npx wordstorms path/to/folder
 
 # Some files, with options
-npm run storm -- a.txt b.txt c.txt --words 40 --distinct 30 --palette ocean --out my-storm
+npx wordstorms a.txt b.txt c.txt --words 40 --distinct 30 --palette ocean --out my-storm
 
 # A built-in example, in its own look
-npm run storm -- --example holmes
+npx wordstorms --example holmes
 ```
+
+From a clone, `npm run storm -- <same arguments>` in `web/` runs the source
+directly; paths are relative to where you run it.
 
 | Option | What it does | Default |
 |---|---|---|
-| `-o, --out <dir>` | Where to write the files | `out/storm` |
+| `-o, --out <dir>` | Where to write the files | `./wordstorm` |
 | `-f, --format <list>` | `svg`, `png` and/or `json`, comma-separated | `svg,png` |
 | `--separate` | Lay out each cloud on its own, like an ordinary word cloud, instead of as a storm | |
 | `-w, --words <n>` | Words per cloud; common English words ("the", "and", "said") are always left out | 35 |
 | `-d, --distinct <0-100>` | Favor words a document uses more than the others, in %. Unlike tf-idf, words every document uses can still appear, so there are shared words to line up | 20 |
-| `--size <0.5-1.5>` | Size differences: 1 is the original scale, higher is more dramatic | 1 |
+| `--contrast <0.5-1.5>` | Size differences: 1 is the original scale, higher is more dramatic | 1 |
 | `--vertical <0-1>` | Share of vertical words | 0.29 |
 | `--mark <how>` | Set shared words apart: `none`, `weight` (words only one document uses are drawn thin) or `warmth` (warm colors for shared words) | `none` |
 | `-p, --palette <name>` | `storm`, `ocean`, `sunset`, `crayon`, `forest`, `midnight`, `parchment`, `ink`, `classic` | `storm` |
 | `--font <id>` | `oswald`, `bricolage`, `anton`, `fraunces`, `zilla`, `playfair`, `abril`, `fredoka`, `system` | `oswald` |
-| `--shape <WxH>` | Cloud size in pixels | `640x480` |
+| `--size <WxH>` | Cloud size in pixels | `640x480` |
 | `--ignore <words>` | Extra words to leave out, comma-separated | |
 | `-s, --seed <n>` | Layout number; the same number gives the same layout | 123456 |
 | `--example <id>` | Use a built-in example's documents and look; other options override it | |
@@ -113,6 +117,7 @@ own with `#create`.
 |---|---|
 | `npm run dev` | Dev server with hot reload |
 | `npm run storm -- …` | Makes a storm from text files (see [Command line](#command-line)) |
+| `npm run build:cli` | Bundles the command line into `web/dist-cli/` for publishing (`npm publish` runs it) |
 | `npm test` | Unit and layout tests |
 | `npm run typecheck` | TypeScript checks |
 | `npm run render-examples` | Renders the examples to PNG in `web/out/examples/` |

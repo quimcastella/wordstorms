@@ -145,8 +145,8 @@ export type Progress = (message: string) => void;
 
 const MAX_ATTEMPTS = 5000;
 
+/** One word across the storm: its copies in every cloud that kept it. */
 interface Entry {
-  text: string;
   words: WordState[];
   idf: number;
   color?: string;
@@ -165,7 +165,7 @@ interface WordState {
   light: boolean;
   x: number;
   y: number;
-  hasLocation: boolean;
+  /** Has a position (shared words keep theirs between passes). */
   placed: boolean;
 }
 
@@ -188,7 +188,6 @@ export function generateStorm(
 
   onProgress('Counting words');
   const clouds = selectWords(docs, opts);
-  buildIndex(clouds);
   assignStyle(clouds, opts, rng, coordinated);
 
   const layout = new Layout(opts, measurer);
@@ -223,47 +222,40 @@ export function generateStorm(
   };
 }
 
+/** Each document's top words, linked across clouds through a shared Entry per word. */
 function selectWords(docs: Doc[], opts: StormOptions): WordState[][] {
   let counts = docs.map((d) => countWords(d.text, opts));
   if (opts.weighting === 'tfidf') counts = applyTfIdf(counts);
   if (opts.distinctiveness > 0) counts = applyKeyness(counts, opts.distinctiveness);
-  const e = opts.sizeExponent;
-  return counts.map((c, cloud) =>
-    normalizeWeights(sortCounts(c).slice(0, opts.maxWords).map(([w, n]): [string, number] => [w, n ** e])).map(
-      ([text, weight]): WordState => ({
+  const top = counts.map((c) =>
+    normalizeWeights(sortCounts(c).slice(0, opts.maxWords).map(([w, n]): [string, number] => [w, n ** opts.sizeExponent])),
+  );
+
+  const entries = new Map<string, Entry>();
+  const clouds = top.map((words, cloud) =>
+    words.map(([text, weight]) => {
+      let entry = entries.get(text);
+      if (!entry) entries.set(text, (entry = { words: [], idf: 0 }));
+      const w: WordState = {
         text,
         cloud,
         weight,
-        entry: undefined as unknown as Entry,
+        entry,
         angle: 0,
-        color: '#000000',
+        color: '',
         opacity: 1,
         light: false,
         x: 0,
         y: 0,
-        hasLocation: false,
         placed: false,
-      }),
-    ),
+      };
+      entry.words.push(w);
+      return w;
+    }),
   );
-}
-
-function buildIndex(clouds: WordState[][]): Map<string, Entry> {
-  const entries = new Map<string, Entry>();
-  for (const ws of clouds) {
-    for (const w of ws) {
-      let e = entries.get(w.text);
-      if (!e) {
-        e = { text: w.text, words: [], idf: 0 };
-        entries.set(w.text, e);
-      }
-      e.words.push(w);
-      w.entry = e;
-    }
-  }
   const D = clouds.length;
   for (const e of entries.values()) e.idf = D > 1 ? Math.log(D / e.words.length) / Math.log(D) : 1;
-  return entries;
+  return clouds;
 }
 
 function randomAngle(rng: Rng, verticalShare: number): Angle {
@@ -458,7 +450,6 @@ class Layout {
         for (const [w, p] of found) {
           w.x = p.x;
           w.y = p.y;
-          w.hasLocation = true;
           w.placed = true;
         }
       }
@@ -488,13 +479,15 @@ class Layout {
       return { x: Math.trunc(w.x) - 1, y: Math.trunc(w.y) - 1, w: Math.trunc(s.w) + 2, h: Math.trunc(s.h) + 2 };
     };
 
+    // How different two clouds' texts are (all their words), and how different
+    // their shared words' sizes are; neither changes during this phase.
     const docDis = pairwise(D, (i, j) => weightDistance(all[i], all[j], 1));
+    const sizeDis = pairwise(D, (i, j) => weightDistance(shared[i], shared[j], this.sizeFactor));
     const S: number[][] = Array.from({ length: D }, () => new Array<number>(D).fill(0));
     const stress = () => {
       for (let i = 0; i < D; i++) {
         for (let j = i + 1; j < D; j++) {
-          const cloudDis =
-            weightDistance(shared[i], shared[j], this.sizeFactor) + positionDistance(shared[i], shared[j]);
+          const cloudDis = sizeDis[i][j] + positionDistance(shared[i], shared[j]);
           const dd = docDis[i][j] === 0 ? 1 : docDis[i][j];
           S[i][j] = S[j][i] = (docDis[i][j] - cloudDis) / dd;
         }
@@ -553,38 +546,34 @@ class Layout {
       return { gradient, maxOverlap };
     };
 
-    // Stages (overlap, same word, compactness) from the original's Combined algorithm.
-    const schedule: [number, number, number][] = [
-      [0, 1, 0],
-      [0.1, 1, 0.5],
-      [0, 1, 0],
-      [1, 1, 0.5],
-      [1, 0.1, 0.5],
-      [1, 0, 0.9],
-      [10, 0, 0],
+    // Stages from the original's Combined algorithm: the weights of the overlap,
+    // same-word and compactness forces, and the gradient below which the stage ends.
+    const schedule: [number, number, number, number][] = [
+      [0, 1, 0, 0.2],
+      [0.1, 1, 0.5, 0.2],
+      [0, 1, 0, 0.2],
+      [1, 1, 0.5, 0.2],
+      [1, 0.1, 0.5, 0.2],
+      [1, 0, 0.9, 0.1001],
+      [10, 0, 0, 0.01],
     ];
-    let iterations = 1;
+    // A first step with every force on finds the initial overlaps.
     let state = move(1, 1, 1);
-    let gradient = state.gradient;
-    let prev = Infinity;
-    for (let s = 0; s < schedule.length; s++) {
+    let iterations = 1;
+    schedule.forEach(([over, same, comp, stop], s) => {
       const last = s === schedule.length - 1;
-      const secondLast = s === schedule.length - 2;
-      gradient = 100;
-      const converged = () =>
-        last
-          ? state.maxOverlap < 10 || (gradient < 0.01 && prev < 0.01)
-          : secondLast
-            ? gradient < 0.1001
-            : gradient < 0.2;
-      while (!converged() && iterations < this.opts.maxForceIterations) {
+      let gradient = 100;
+      let prev = 100;
+      // The last stage ends once overlaps are small, or the gradient stays below `stop` for two steps.
+      const done = () => (last ? state.maxOverlap < 10 || (gradient < stop && prev < stop) : gradient < stop);
+      while (!done() && iterations < this.opts.maxForceIterations) {
         prev = gradient;
-        state = move(...schedule[s]);
+        state = move(over, same, comp);
         gradient = state.gradient;
         iterations++;
-        if (iterations % 200 === 0) onProgress(`Refining layout (stage ${s + 1}/7, step ${iterations})`);
+        if (iterations % 200 === 0) onProgress(`Refining layout (stage ${s + 1}/${schedule.length}, step ${iterations})`);
       }
-    }
+    });
     return iterations;
   }
 
@@ -601,7 +590,6 @@ class Layout {
         board.add(g.mask, p.x, p.y);
         w.x = p.x;
         w.y = p.y;
-        w.hasLocation = true;
         w.placed = true;
       }
     });
@@ -670,7 +658,7 @@ function average(e: Entry): { x: number; y: number } | null {
   let y = 0;
   let n = 0;
   for (const w of e.words) {
-    if (!w.hasLocation) continue;
+    if (!w.placed) continue;
     x += w.x;
     y += w.y;
     n++;
