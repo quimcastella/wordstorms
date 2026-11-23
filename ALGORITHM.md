@@ -49,7 +49,7 @@ For each document:
 10. **Size contrast** (`sizeExponent` = e, default 1): raise each count to the
     power e. Above 1 widens the gap between the top word and the rest, below
     1 narrows it.
-11. Normalize: `weight_i = 1.2 · c_i · n / (2 · Σc)` for the n kept words, so the
+11. Normalize: `weight_i = 0.6 · n · c_i / Σc` for the n kept words, so the
     mean weight is 0.6.
 
 Words kept by two or more documents are **shared**; the rest are **unique** to
@@ -96,8 +96,8 @@ fail
 ```
 
 Collision is tested on the letters' shapes: each word is a 1-bit pixel mask,
-grown by 1 px, checked against a bitmap of the cloud. In the force phase
-(4c), shared words collide as boxes instead.
+grown by 1 px, checked against a bitmap of the cloud. In iterative placement
+(4a), shared words collide as solid boxes grown by 1 px instead.
 
 When there is no better guess, the desired position is a Gaussian clump around
 the field's center: `x = round(map(N(0,1) · 0.4, −2, 2, 0, W − w))`, and the
@@ -114,9 +114,10 @@ phase has to spread it out; step 6 scales everything back to fit.
 
 In each pass, for each cloud in order, place its shared words in descending
 weight with the spiral search, starting from the average of the word's current
-positions in the other clouds (or, if it has none yet, a tighter Gaussian
-clump with σ = 0.2 instead of 0.4). After a cloud is done, its positions
-become visible to the clouds after it.
+positions in every cloud that has placed it, including this cloud's own
+position from the previous pass (or, if no cloud has placed it yet, a tighter
+Gaussian clump with σ = 0.2 instead of 0.4). After a cloud is done, its
+positions become visible to the clouds after it.
 
 If any word in any cloud fails to place, every size is multiplied by 0.9 and
 the pass starts over.
@@ -141,33 +142,38 @@ Each iteration moves every shared word, in every cloud, by `−step`, where
   word, normalized if longer than 1, times `0.1 · compEps`.
 
 `|step|` is capped at 30 px. Words simply move; there is no collision search in
-this phase. Overlaps are recorded after each move, against the words of that
-cloud already moved in this iteration.
+this phase. Clouds move one after another, so the same-word pull sees this
+iteration's positions for the clouds already moved and the previous ones for
+the rest. After a cloud moves, its overlaps are found again; the overlap push
+uses the ones found when that cloud last moved.
 
 **Similarity of clouds:** for clouds `i` and `j`,
 `docDis(i,j) = Σ_w (weight_i(w) − weight_j(w))²` over the union of their words
-(a missing word weighs 0), computed once at the start, and
-`cloudDis(i,j) = docDis(i,j) + Σ_{shared w} |loc_i(w) − loc_j(w)|²` with the
-current positions. Then `S[i][j] = (docDis − cloudDis) / docDis` (1 in the
-denominator if it is 0), recomputed every iteration.
+(a missing word weighs 0), and `sizeDis(i,j)`, the same sum over only the two
+clouds' shared words, with weights multiplied by the shrink factor from 4a.
+Both are computed once at the start. Then, with the current positions,
+`cloudDis(i,j) = sizeDis(i,j) + Σ_{w in both} |loc_i(w) − loc_j(w)|²` and
+`S[i][j] = (docDis − cloudDis) / docDis` (1 in the denominator if it is 0),
+recomputed every iteration.
 
-**Schedule:** the force phase runs through these stages in order:
+**Schedule:** one iteration with every weight at 1 finds the first overlaps.
+Then the force phase runs through these stages in order:
 
-| stage | overlap | same word | compactness |
-|---|---|---|---|
-| 0 | 0 | 1 | 0 |
-| 1 | 0.1 | 1 | 0.5 |
-| 2 | 0 | 1 | 0 |
-| 3 | 1 | 1 | 0.5 |
-| 4 | 1 | 0.1 | 0.5 |
-| 5 | 1 | 0 | 0.9 |
-| 6 | 10 | 0 | 0 |
+| stage | overlap | same word | compactness | ends when `gradient` < |
+|---|---|---|---|---|
+| 0 | 0 | 1 | 0 | 0.2 |
+| 1 | 0.1 | 1 | 0.5 | 0.2 |
+| 2 | 0 | 1 | 0 | 0.2 |
+| 3 | 1 | 1 | 0.5 | 0.2 |
+| 4 | 1 | 0.1 | 0.5 | 0.2 |
+| 5 | 1 | 0 | 0.9 | 0.1001 |
+| 6 | 10 | 0 | 0 | 0.01, two iterations in a row |
 
-`gradient` is the largest `|step|` in an iteration. A stage ends when
-`gradient < 0.2`, the second-to-last when `gradient < 0.1001`, and the last when
-the largest single overlap penalty, `(smallest overlap depth + 1)²`, is below 10
-or `gradient < 0.01`, for two iterations in a row. The whole phase stops after
-`maxForceIterations` (default 20,000) at most.
+`gradient` is the largest `|step|` in an iteration. Every stage but the last
+runs at least once. The last also ends when the largest single overlap
+penalty, `(smallest overlap depth + 1)²`, is below 10, which is checked before
+its first iteration too. The whole phase stops after `maxForceIterations`
+(default 20,000) iterations at most.
 
 ### 4c. Unique words
 

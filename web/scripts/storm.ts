@@ -1,10 +1,12 @@
+#!/usr/bin/env node
 // Makes a word storm from text files on the command line: one SVG and/or PNG
 // per cloud, all in the same frame, plus the layout as JSON.
 //
-//   npm run storm -- [options] <files or folders...>
-//   npm run storm -- --example shakespeare [options]
+//   wordstorms [options] <files or folders...>       (installed, or with npx)
+//   npm run storm -- [options] <files or folders...> (from web/ in a clone)
 //
-// Run with --help for the options.
+// Run with --help for the options. `npm run build:cli` bundles this file into
+// dist-cli/wordstorms.js, which is what the published package runs.
 import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, resolve } from 'node:path';
@@ -20,27 +22,33 @@ import { EXAMPLES } from '../src/app/example-list.ts';
 import { FONT_LIST, LATIN, LATIN_EXT, type FontInfo } from '../src/app/font-list.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const web = join(here, '..');
+// `npm run` starts scripts in web/; INIT_CWD is where the user ran it from.
+const cwd = process.env.INIT_CWD ?? process.cwd();
 const MARKS = ['none', 'weight', 'warmth'] as const;
 
 const HELP = `Make a word storm from text files: one cloud per file.
 
 Usage:
-  npm run storm -- [options] <files or folders...>
-  npm run storm -- --example <${EXAMPLES.map((e) => e.id).join('|')}> [options]
+  wordstorms [options] <files or folders...>
+  wordstorms --example <${EXAMPLES.map((e) => e.id).join('|')}> [options]
+
+Examples:
+  wordstorms speeches/                 One cloud per .txt or .md file in a folder
+  wordstorms a.txt b.txt -w 50 -p ocean
+  wordstorms --example shakespeare     A built-in example, in its own look
 
 Options:
-  -o, --out <dir>        Where to write the files (default: out/storm)
+  -o, --out <dir>        Where to write the files (default: ./wordstorm)
   -f, --format <list>    svg, png and/or json, comma-separated (default: svg,png)
       --separate         Lay out each cloud on its own instead of as a storm
   -w, --words <n>        Words per cloud (default: ${DEFAULT_OPTIONS.maxWords})
-  -d, --distinct <0-100> Favor words a document uses more than the others, in % (default: ${DEFAULT_OPTIONS.distinctiveness * 100})
-      --size <0.5-1.5>   Size differences: 1 is the original scale, higher is more dramatic (default: 1)
+  -d, --distinct <n>     Favor words a document uses more than the others, 0–100 (default: ${DEFAULT_OPTIONS.distinctiveness * 100})
+      --contrast <n>     Size differences, 0.5–1.5: 1 is the original scale, higher is more dramatic (default: 1)
       --vertical <0-1>   Share of vertical words (default: 0.29)
       --mark <how>       Set shared words apart: ${MARKS.join(', ')} (default: none)
   -p, --palette <name>   ${Object.keys(PALETTES).join(', ')} (default: ${DEFAULT_OPTIONS.palette})
       --font <id>        ${FONT_LIST.map((f) => f.id).join(', ')} (default: ${FONT_LIST[0].id})
-      --shape <WxH>      Cloud size in pixels (default: ${DEFAULT_OPTIONS.width}x${DEFAULT_OPTIONS.height})
+      --size <WxH>       Cloud size in pixels (default: ${DEFAULT_OPTIONS.width}x${DEFAULT_OPTIONS.height})
       --ignore <words>   Extra words to leave out, comma-separated
   -s, --seed <n>         Layout number; the same number gives the same layout (default: ${DEFAULT_OPTIONS.seed})
       --example <id>     Use a built-in example's documents and look; other options override it
@@ -61,12 +69,12 @@ const { values: args, positionals } = parseArgs({
     separate: { type: 'boolean' },
     words: { type: 'string', short: 'w' },
     distinct: { type: 'string', short: 'd' },
-    size: { type: 'string' },
+    contrast: { type: 'string' },
     vertical: { type: 'string' },
     mark: { type: 'string' },
     palette: { type: 'string', short: 'p' },
     font: { type: 'string' },
-    shape: { type: 'string' },
+    size: { type: 'string' },
     ignore: { type: 'string' },
     seed: { type: 'string', short: 's' },
     example: { type: 'string' },
@@ -89,8 +97,9 @@ const number = (name: string, value: string | undefined, min: number, max: numbe
 // ---------- Documents ----------
 
 function readDocs(paths: string[]): Doc[] {
-  const files = paths.flatMap((p) => {
-    if (!existsSync(p)) fail(`No such file or folder: ${p}`);
+  const files = paths.flatMap((given) => {
+    const p = resolve(cwd, given);
+    if (!existsSync(p)) fail(`No such file or folder: ${given}`);
     if (!statSync(p).isDirectory()) return [p];
     return readdirSync(p)
       .filter((f) => /\.(txt|md)$/i.test(f))
@@ -103,10 +112,17 @@ function readDocs(paths: string[]): Doc[] {
 const example = args.example ? EXAMPLES.find((e) => e.id === args.example) : undefined;
 if (args.example && !example) fail(`Unknown example "${args.example}". Pick one of: ${EXAMPLES.map((e) => e.id).join(', ')}.`);
 
+if (!example && positionals.length === 0) {
+  console.error(HELP);
+  process.exit(1);
+}
+
+// The examples sit next to the bundled CLI, or at the repository root when run from source.
+const examplesDir = [join(here, 'examples'), join(here, '..', '..', 'examples')].find((d) => existsSync(d));
 const docs = example
-  ? example.docs.map((name) => ({ name, text: readFileSync(join(web, '..', 'examples', example.folder, `${name}.txt`), 'utf8') }))
+  ? example.docs.map((name) => ({ name, text: readFileSync(join(examplesDir ?? '', example.folder, `${name}.txt`), 'utf8') }))
   : readDocs(positionals);
-if (docs.length === 0) fail('Give some text files or a folder, one document per file (or --example).');
+if (docs.length === 0) fail('No .txt or .md files found. Give some text files or a folder, one document per file.');
 
 // ---------- Options ----------
 
@@ -119,23 +135,23 @@ const font: FontInfo =
   FONT_LIST.find((f) => f.id === (args.font ?? example?.look.font ?? FONT_LIST[0].id)) ??
   fail(`Unknown font "${args.font}". Pick one of: ${FONT_LIST.map((f) => f.id).join(', ')}.`);
 
-let shape: { width: number; height: number } | undefined;
-if (args.shape) {
-  const m = /^(\d+)x(\d+)$/.exec(args.shape);
-  if (!m) fail(`--shape must look like 640x480, not "${args.shape}".`);
-  shape = { width: Number(m[1]), height: Number(m[2]) };
+let size: { width: number; height: number } | undefined;
+if (args.size) {
+  const m = /^(\d+)x(\d+)$/.exec(args.size);
+  if (!m) fail(`--size must look like 640x480, not "${args.size}".`);
+  size = { width: Number(m[1]), height: Number(m[2]) };
 }
 
 const given: Partial<StormOptions> = {
   mode: args.separate ? 'independent' : undefined,
   maxWords: number('words', args.words, 1, 500),
   distinctiveness: args.distinct === undefined ? undefined : number('distinct', args.distinct, 0, 100)! / 100,
-  sizeExponent: number('size', args.size, 0.1, 3),
+  sizeExponent: number('contrast', args.contrast, 0.1, 3),
   verticalShare: number('vertical', args.vertical, 0, 1),
   markShared: args.mark as StormOptions['markShared'] | undefined,
   palette: args.palette as PaletteName | undefined,
   seed: number('seed', args.seed, 0, Number.MAX_SAFE_INTEGER),
-  ...shape,
+  ...size,
 };
 const options: Partial<StormOptions> = {
   ...example?.look.options,
@@ -146,7 +162,7 @@ const options: Partial<StormOptions> = {
 // ---------- Fonts ----------
 
 const fontFile = (f: FontInfo, weight: number, subset: 'latin' | 'latin-ext') =>
-  join(web, 'node_modules', '@fontsource', f.package, 'files', `${f.package}-${subset}-${weight}-normal.woff2`);
+  fileURLToPath(import.meta.resolve(`@fontsource/${f.package}/files/${f.package}-${subset}-${weight}-normal.woff2`));
 const weights = (spec: FontSpec) => [...new Set([fontWeight(spec), fontWeight(spec, true)])];
 
 // Register the font so text is measured and drawn with it.
@@ -169,7 +185,10 @@ function embeddedCss(f: FontInfo): string {
 // ---------- Layout and output ----------
 
 const started = performance.now();
-const storm = generateStorm(docs, options, createCanvasMeasurer((w, h) => createCanvas(w, h), font.spec));
+// Progress on one updating line, only when someone is watching.
+const progress = process.stderr.isTTY ? (m: string) => process.stderr.write(`\r\x1b[K${m}…`) : undefined;
+const storm = generateStorm(docs, options, createCanvasMeasurer((w, h) => createCanvas(w, h), font.spec), progress);
+if (progress) process.stderr.write('\r\x1b[K');
 
 function pngOf(cloud: Cloud, width: number, height: number, scale = 2): Buffer {
   const canvas = createCanvas(Math.round(width * scale), Math.round(height * scale));
@@ -180,7 +199,7 @@ function pngOf(cloud: Cloud, width: number, height: number, scale = 2): Buffer {
   return canvas.toBuffer('image/png');
 }
 
-const out = resolve(args.out ?? join(web, 'out', 'storm'));
+const out = resolve(cwd, args.out ?? 'wordstorm');
 mkdirSync(out, { recursive: true });
 const { clouds, width, height } = cropStorm(storm);
 const written: string[] = [];
