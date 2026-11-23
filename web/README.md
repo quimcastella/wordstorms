@@ -59,7 +59,7 @@ wordstorms path/to/folder
 | `--separate` | Lay out each cloud on its own, like an ordinary word cloud, instead of as a storm | |
 | `--no-crop` | Keep the full `--size` frame; by default every file is cropped to the words, all to the same frame | |
 | `--scale <n>` | PNG pixels per layout pixel, 0.25–8 | 2 |
-| `-w, --words <n>` | Words per cloud; common English words ("the", "and", "said") are always left out | 35 |
+| `-w, --words <n>` | Words per cloud; common words ("the", "and", "said") are left out, see `--language` | 35 |
 | `-d, --distinct <0-100>` | Favor words a document uses more than the others, in %. Unlike tf-idf, words every document uses can still appear, so there are shared words to line up | 20 |
 | `--contrast <0.1-3>` | Size differences: 1 is the original scale, higher is more dramatic (the site's slider covers 0.5–1.5) | 1 |
 | `--vertical <0-1>` | Share of vertical words | 0.29 |
@@ -67,6 +67,7 @@ wordstorms path/to/folder
 | `-p, --palette <name>` | `storm`, `ocean`, `sunset`, `crayon`, `forest`, `midnight`, `parchment`, `ink`, `classic` | `storm` |
 | `--font <id>` | `oswald`, `bricolage`, `anton`, `fraunces`, `zilla`, `playfair`, `abril`, `fredoka`, `system` | `oswald` |
 | `--size <WxH>` | Cloud size in pixels | `640x480` |
+| `--language <name>` | `english`, `spanish`, `catalan` or `none`: which common words to leave out and how to clean up word forms. `none` keeps every word as written, single letters included | `english` |
 | `--ignore <words>` | Extra words to leave out, comma-separated | |
 | `-s, --seed <n>` | Layout number; the same number gives the same layout | 123456 |
 | `--example <id>` | Use a built-in example's documents and look instead of files; other options override it | |

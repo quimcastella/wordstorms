@@ -3,6 +3,10 @@ export { generateStorm, resolveOptions, DEFAULT_OPTIONS, PAPER_OPTIONS, MAX_SIZE
 export type { Doc, Storm, Cloud, PlacedWord, StormOptions, StormStats, Mode, Progress } from './core/storm.ts';
 export { PALETTES } from './core/palettes.ts';
 export type { Palette, PaletteName } from './core/palettes.ts';
+export { LANGUAGES } from './core/language.ts';
+export type { Language } from './core/language.ts';
+export type { Morphology, TextCase } from './core/text.ts';
+export type { StopwordLanguage } from './core/stopwords.ts';
 export type { Angle, Glyph, GlyphMeasurer, Mask } from './core/glyph.ts';
 export { createCanvasMeasurer, cssFont, DEFAULT_FONT } from './measure/canvas.ts';
 export type { CanvasLike, FontSpec } from './measure/canvas.ts';

@@ -130,3 +130,47 @@ describe('weighCounts', () => {
     expect([...d]).toEqual([['e', 2]]);
   });
 });
+
+describe('countWords in other languages', () => {
+  it('treats composed and decomposed accents as the same word', () => {
+    const counts = countWords('café café Café', opts);
+    expect(Object.fromEntries(counts)).toEqual({ café: 3 });
+  });
+
+  it('drops Spanish function words with the Spanish list', () => {
+    const counts = countWords('El niño y la niña están en el jardín con sus perros. El estado es fuerte.', {
+      ...opts,
+      stopwords: 'spanish',
+      morphology: 'none',
+    });
+    expect([...counts.keys()].sort()).toEqual(['estado', 'fuerte', 'jardín', 'niña', 'niño', 'perros']);
+  });
+
+  it('splits Catalan elisions and attached pronouns off their words', () => {
+    const text = "L'home va dir-ho a l’àvia d'en Pere: n'hi ha prou, fes-ho. Donar-te'l. Nord-americà, l'aigua de l'Estat";
+    const counts = countWords(text, { ...opts, stopwords: 'catalan', morphology: 'catalan' });
+    expect([...counts.keys()].sort()).toEqual(['aigua', 'donar', 'estat', 'fes', 'home', 'nord-americà', 'pere', 'prou', 'àvia']);
+  });
+
+  it('keeps every token as written with no stop words, morphology or minimum length', () => {
+    const counts = countWords("R and C: new news, Holmes's", {
+      ...opts,
+      stopwords: 'none',
+      morphology: 'none',
+      minWordLength: 1,
+    });
+    expect(Object.fromEntries(counts)).toEqual({ r: 1, and: 1, c: 1, new: 1, news: 1, "holmes's": 1 });
+  });
+
+  it('merges plurals and possessives only with English morphology', () => {
+    const text = "new news jobs job Holmes's";
+    expect([...countWords(text, opts).keys()].sort()).toEqual(['holmes', 'job', 'new']);
+    expect([...countWords(text, { ...opts, morphology: 'none' }).keys()].sort()).toEqual([
+      "holmes's",
+      'job',
+      'jobs',
+      'new',
+      'news',
+    ]);
+  });
+});

@@ -23,19 +23,35 @@ one, such as a zero width or a fractional word count.
 
 For each document:
 
-1. Lower-case the text.
+1. Normalize Unicode to NFC (so a decomposed `é` is the same word as `é`) and
+   lower-case the text.
 2. Split it into tokens: runs of letters and digits, which may be joined by
    `- . : / ' ’` and a few other connecting characters (so `co-op`, `e-mail`
    and `don't` are single tokens).
-3. Drop stop words: one-letter tokens and words in the stop list. The default
-   list, `extended`, has common English function words plus common verbs,
-   adverbs and determiners (one, now, come, went, must, much…), early modern
-   English function words (thou, hath, 'tis…) and title abbreviations (mr,
-   mrs, dr). `’` is treated as `'`.
-4. Drop numbers, and strip a trailing `'s` so possessives count with their
-   noun. The stop list is checked first, so `it's` stays a stop word.
+3. Drop stop words: tokens shorter than `minWordLength` (default 2, so
+   one-letter tokens go) and words in the stop list. The default list,
+   `extended`, has common English function words plus common verbs, adverbs
+   and determiners (one, now, come, went, must, much…), early modern English
+   function words (thou, hath, 'tis…) and title abbreviations (mr, mrs, dr).
+   There are also `english` (the original's shorter list), `spanish`,
+   `catalan` and `none`. `’` is treated as `'`.
+4. Clean up word forms (`morphology`). With `english` (default), strip a
+   trailing `'s` so possessives count with their noun; the stop list is
+   checked first, so `it's` stays a stop word. With `catalan`, split off
+   elided articles and pronouns before a word (`l'home` → `home`, `d'en` →
+   `en`, a stop word) and pronouns attached after a verb (`dir-ho` → `dir`,
+   `donar-te'l` → `donar`). With `none`, tokens are counted as they are. Then
+   drop numbers.
 5. Count each word.
-6. Merge plurals: if both `x` and `xs` appear, add the count of `xs` to `x`.
+6. With `english` morphology, merge plurals: if both `x` and `xs` appear, add
+   the count of `xs` to `x`. This is a heuristic: it also merges pairs that
+   aren't plurals, such as `new` and `news`.
+
+The command line's and site's language choice sets these together: `english`
+is the `extended` list with `english` morphology, `spanish` the Spanish list
+with no morphology, `catalan` the Catalan list and morphology, and `none` no
+stop words, no morphology and a minimum length of 1.
+
 7. **Optional tf-idf** (`weighting: "tfidf"`): multiply each count by
    `idf(w) = ln(D / df(w)) / ln(D)`, where `D` is the number of documents and
    `df(w)` the number whose text has the word. A word in every document drops
