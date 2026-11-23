@@ -2,6 +2,7 @@ import { createCanvas } from '@napi-rs/canvas';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { PALETTES } from '../src/core/palettes.ts';
 import { generateStorm, type Storm } from '../src/core/storm.ts';
 import { createCanvasMeasurer } from '../src/measure/canvas.ts';
 
@@ -51,6 +52,14 @@ describe('generateStorm', () => {
       expect(seen.get(w.text) ?? style).toBe(style);
       seen.set(w.text, style);
     }
+  });
+
+  it('colors words from the chosen palette and reports its background', () => {
+    expect(coordinated.background).toBe(PALETTES.storm.background);
+    for (const w of coordinated.clouds.flatMap((c) => c.words)) expect(PALETTES.storm.colors).toContain(w.color);
+    const midnight = generateStorm(docs.slice(0, 2), { palette: 'midnight', maxWords: 10 }, measurer());
+    expect(midnight.background).toBe(PALETTES.midnight.background);
+    for (const w of midnight.clouds.flatMap((c) => c.words)) expect(PALETTES.midnight.colors).toContain(w.color);
   });
 
   it('fades words that every cloud shares', () => {

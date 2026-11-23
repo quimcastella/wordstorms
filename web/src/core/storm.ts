@@ -1,6 +1,7 @@
 import { Board } from './board.ts';
 import { hsbToHex } from './color.ts';
 import { boxMask, type Angle, type Glyph, type GlyphMeasurer, type Mask } from './glyph.ts';
+import { PALETTES, type PaletteName } from './palettes.ts';
 import { createRng, type Rng } from './random.ts';
 import type { StopwordLanguage } from './stopwords.ts';
 import { applyTfIdf, countWords, normalizeWeights, sortCounts, type TextCase } from './text.ts';
@@ -31,6 +32,8 @@ export interface StormOptions {
   weighting: 'tf' | 'tfidf';
   /** Coordinated only: words shared by many clouds are drawn more transparent. */
   fadeCommonWords: boolean;
+  /** Word colors and background; `classic` is the original random HSB coloring. */
+  palette: PaletteName;
   /** Coordinated only: a word has converged when it is within this many px of its average position (−1: one pass). */
   tolerance: number;
   /** Coordinated only: maximum passes of the iterative phase. */
@@ -53,6 +56,7 @@ export const DEFAULT_OPTIONS: StormOptions = {
   excludeNumbers: true,
   weighting: 'tf',
   fadeCommonWords: true,
+  palette: 'storm',
   tolerance: 50,
   maxIterations: 5,
   maxForceIterations: 20000,
@@ -96,6 +100,8 @@ export interface StormStats {
 export interface Storm {
   width: number;
   height: number;
+  /** Background color the palette was designed for. */
+  background: string;
   clouds: Cloud[];
   stats: StormStats;
 }
@@ -176,6 +182,7 @@ export function generateStorm(
   return {
     width: opts.width,
     height: opts.height,
+    background: (PALETTES[opts.palette] ?? PALETTES.storm).background,
     clouds: result,
     stats: { passes, forceIterations, shrink: layout.sizeFactor, millis: Date.now() - start },
   };
@@ -221,7 +228,8 @@ function buildIndex(clouds: WordState[][]): Map<string, Entry> {
   return entries;
 }
 
-function randomColor(rng: Rng): string {
+function randomColor(rng: Rng, colors: readonly string[]): string {
+  if (colors.length) return colors[rng.int(colors.length)];
   return hsbToHex(rng.uniform(256) / 256, 200 / 255, (50 + rng.uniform(150)) / 255);
 }
 
@@ -236,18 +244,19 @@ function assignStyle(
   rng: Rng,
   coordinated: boolean,
 ): void {
+  const colors = (PALETTES[opts.palette] ?? PALETTES.storm).colors;
   for (const ws of clouds) {
     for (const w of ws) {
       if (coordinated) {
         const e = w.entry;
         e.angle ??= ANGLES[rng.int(ANGLES.length)];
-        e.color ??= randomColor(rng);
+        e.color ??= randomColor(rng, colors);
         w.angle = e.angle;
         w.color = e.color;
         w.opacity = opts.fadeCommonWords ? idfOpacity(e.idf) : 1;
       } else {
         w.angle = ANGLES[rng.int(ANGLES.length)];
-        w.color = randomColor(rng);
+        w.color = randomColor(rng, colors);
       }
     }
   }

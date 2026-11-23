@@ -1,5 +1,5 @@
 import type { Cloud, PlacedWord, Storm } from '../core/storm.ts';
-import { DEFAULT_FONT } from '../measure/canvas.ts';
+import { DEFAULT_FONT, type FontSpec } from '../measure/canvas.ts';
 
 const escapeXml = (s: string) =>
   s.replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]!);
@@ -18,21 +18,28 @@ export function wordToSvg(w: PlacedWord): string {
 }
 
 export interface SvgOptions {
-  fontFamily?: string;
-  background?: string;
+  font?: FontSpec;
+  /** Background fill; `null` for transparent. Defaults to the storm's background. */
+  background?: string | null;
   /** Adds xmlns so the SVG can be saved as a standalone file. */
   standalone?: boolean;
+  /** CSS (e.g. @font-face rules with embedded fonts) to include in the file. */
+  css?: string;
 }
+
+const fontAttrs = (font: FontSpec = { family: DEFAULT_FONT }) =>
+  `font-family="${escapeXml(font.family)}" font-weight="${font.weight ?? 400}"`;
+
+const style = (css?: string) => (css ? `<style>${css.replace(/<\//g, '<\\/')}</style>` : '');
 
 /** One cloud as an SVG document. */
 export function cloudToSvg(cloud: Cloud, width: number, height: number, opts: SvgOptions = {}): string {
-  const font = opts.fontFamily ?? DEFAULT_FONT;
   const xmlns = opts.standalone === false ? '' : ' xmlns="http://www.w3.org/2000/svg"';
   const bg = opts.background ? `<rect width="100%" height="100%" fill="${opts.background}"/>` : '';
   return (
     `<svg${xmlns} viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" ` +
-    `font-family="${escapeXml(font)}" role="img" aria-label="${escapeXml(cloud.name)}">` +
-    `<title>${escapeXml(cloud.name)}</title>${bg}` +
+    `${fontAttrs(opts.font)} role="img" aria-label="${escapeXml(cloud.name)}">` +
+    `<title>${escapeXml(cloud.name)}</title>${style(opts.css)}${bg}` +
     cloud.words.map(wordToSvg).join('') +
     `</svg>`
   );
@@ -43,28 +50,41 @@ export function stormToSvg(storm: Storm, opts: SvgOptions & { columns?: number }
   const n = storm.clouds.length;
   const columns = opts.columns ?? Math.ceil(Math.sqrt(n));
   const rows = Math.ceil(n / columns);
-  const label = 28;
-  const gap = 16;
+  const background = opts.background === undefined ? storm.background : opts.background;
+  const label = 32;
+  const gap = 24;
+  const margin = 24;
   const cellW = storm.width + gap;
   const cellH = storm.height + label + gap;
-  const font = opts.fontFamily ?? DEFAULT_FONT;
+  const dark = background ? luminance(background) < 0.4 : false;
+  const labelColor = dark ? '#cbd5e1' : '#4b5563';
   const parts = storm.clouds.map((cloud, i) => {
-    const x = (i % columns) * cellW;
-    const y = Math.floor(i / columns) * cellH;
-    const inner = cloudToSvg(cloud, storm.width, storm.height, { ...opts, standalone: false });
+    const x = margin + (i % columns) * cellW;
+    const y = margin + Math.floor(i / columns) * cellH;
+    const inner = cloudToSvg(cloud, storm.width, storm.height, {
+      font: opts.font,
+      background: null,
+      standalone: false,
+    });
     return (
-      `<g transform="translate(${x} ${y})">` +
-      `<rect width="${storm.width}" height="${storm.height}" fill="none" stroke="#ddd"/>` +
-      inner +
-      `<text x="${storm.width / 2}" y="${storm.height + 20}" text-anchor="middle" font-size="16" fill="#555">` +
-      `${escapeXml(cloud.name)}</text></g>`
+      `<g transform="translate(${x} ${y})">${inner}` +
+      `<text x="${storm.width / 2}" y="${storm.height + 24}" text-anchor="middle" ` +
+      `font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="500" ` +
+      `fill="${labelColor}">${escapeXml(cloud.name)}</text></g>`
     );
   });
-  const W = columns * cellW - gap;
-  const H = rows * cellH - gap;
-  const bg = opts.background ? `<rect width="100%" height="100%" fill="${opts.background}"/>` : '';
+  const W = columns * cellW - gap + 2 * margin;
+  const H = rows * cellH - gap + 2 * margin;
+  const bg = background ? `<rect width="100%" height="100%" fill="${background}"/>` : '';
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" ` +
-    `font-family="${escapeXml(font)}">${bg}${parts.join('')}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">` +
+    `${style(opts.css)}${bg}${parts.join('')}</svg>`
   );
+}
+
+function luminance(hex: string): number {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return 1;
+  const n = parseInt(m[1], 16);
+  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
 }

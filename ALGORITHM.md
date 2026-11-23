@@ -75,6 +75,8 @@ weight.
   `idfColor`, alpha is a logistic of idf so words shared by every cloud fade:
   `alpha = 2.55 · (40 + 60 / (1 + e^(−20 (idf − 0.2))))` (≈40% → 100%).
   Independent: same HSB distribution, drawn per word per cloud, opaque.
+  **Port:** colors come from a palette (uniform pick from its list, same
+  coordination rules); the `classic` palette keeps the HSB distribution above.
 
 ## 4. Placement primitive (spiral search)
 

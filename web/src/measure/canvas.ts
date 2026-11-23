@@ -25,14 +25,27 @@ export interface CanvasLike {
 
 export const DEFAULT_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
+/** A CSS font-family list and weight. */
+export interface FontSpec {
+  family: string;
+  weight?: number;
+}
+
+/** The CSS `font` shorthand for a font at a size. */
+export function cssFont(font: FontSpec, size: number): string {
+  return `${font.weight ?? 400} ${size}px ${font.family}`;
+}
+
 /**
  * Measures words with a 2D canvas: the tight ink box from measureText, and an
  * ink mask by drawing the word (rotated) and reading its pixels back.
+ * The font must already be loaded wherever the canvas lives.
  */
 export function createCanvasMeasurer(
   createCanvas: (width: number, height: number) => CanvasLike,
-  fontFamily = DEFAULT_FONT,
+  font: FontSpec | string = DEFAULT_FONT,
 ): GlyphMeasurer {
+  const spec: FontSpec = typeof font === 'string' ? { family: font } : font;
   const canvas = createCanvas(256, 256);
   const ctx = canvas.getContext('2d', { willReadFrequently: true }) as Canvas2D;
   const cache = new Map<string, Glyph>();
@@ -45,7 +58,7 @@ export function createCanvasMeasurer(
       if (hit) return hit;
 
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.font = `${size}px ${fontFamily}`;
+      ctx.font = cssFont(spec, size);
       ctx.textBaseline = 'alphabetic';
       const m = ctx.measureText(text);
       const left = m.actualBoundingBoxLeft;
@@ -71,7 +84,7 @@ export function createCanvasMeasurer(
       if (canvas.height < mh) canvas.height = mh;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.font = `${size}px ${fontFamily}`;
+      ctx.font = cssFont(spec, size);
       ctx.textBaseline = 'alphabetic';
       ctx.fillStyle = '#000';
       const rad = (angle * Math.PI) / 180;

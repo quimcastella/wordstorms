@@ -25,9 +25,16 @@ Things you can change:
 - **Size words by** how often they appear, or by how *distinctive* they are to
   each document (tf-idf).
 - **Fade common words:** words that every document uses are drawn lighter.
-- Words to ignore, cloud shape, font, and random seed.
+- **Font:** Oswald (default, a condensed sans that packs tightly), Bricolage
+  Grotesque, Anton, Fraunces, Zilla Slab (a slab, like the original's
+  ChunkFive), or your system font. All are open-source Google Fonts,
+  self-hosted, and embedded in SVG/PNG downloads.
+- **Colors:** Storm, Ocean, Sunset, Forest, Midnight (dark), Ink, or Classic
+  (the original random colors). Every palette color has at least 3:1
+  contrast against its background.
+- Words to ignore, cloud shape, and random seed.
 
-Hover a word to highlight it in every cloud.
+Hover a word to highlight it in every cloud; click to pin it.
 
 ## Run it locally
 
