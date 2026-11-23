@@ -5,7 +5,11 @@ files and it makes one cloud per file. Words the files share keep the same
 place, color and angle in every cloud, so similar documents look similar and
 what's distinctive stands out.
 
-![A word storm of three Shakespeare tragedies and three comedies](https://raw.githubusercontent.com/quimcastella/wordstorms/master/docs/images/shakespeare.png)
+![A word storm of six collections of fairy tales and fables](https://raw.githubusercontent.com/quimcastella/wordstorms/master/docs/images/fairytales.png)
+
+Six collections of fairy tales and fables (`--example fairytales`). Bold words
+appear in more than one collection and sit in the same spot in every cloud;
+thin words belong to one collection.
 
 Prefer a browser? [wordstorms.org](https://wordstorms.org) does the same, and
 your files never leave your computer.
