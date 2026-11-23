@@ -58,15 +58,19 @@ export function sortCounts(counts: Map<string, number>): [string, number][] {
   return [...counts].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
 }
 
-/** Multiplies each count by idf = ln(D/df)/ln(D), with df over full vocabularies. */
-export function applyTfIdf(docs: Map<string, number>[]): Map<string, number>[] {
+/** idf = ln(D/df)/ln(D) per word, with df over full vocabularies: 0 for a word in every document. */
+export function inverseDocumentFrequency(docs: Map<string, number>[]): Map<string, number> {
   const D = docs.length;
-  if (D < 2) return docs;
   const df = new Map<string, number>();
   for (const doc of docs) for (const w of doc.keys()) df.set(w, (df.get(w) ?? 0) + 1);
-  return docs.map(
-    (doc) => new Map([...doc].map(([w, n]) => [w, (n * Math.log(D / df.get(w)!)) / Math.log(D)] as [string, number])),
-  );
+  return new Map([...df].map(([w, n]) => [w, D < 2 ? 1 : Math.log(D / n) / Math.log(D)]));
+}
+
+/** Multiplies each count by its idf (see `inverseDocumentFrequency`). */
+export function applyTfIdf(docs: Map<string, number>[]): Map<string, number>[] {
+  if (docs.length < 2) return docs;
+  const idf = inverseDocumentFrequency(docs);
+  return docs.map((doc) => new Map([...doc].map(([w, n]) => [w, n * idf.get(w)!] as [string, number])));
 }
 
 /**
@@ -74,6 +78,7 @@ export function applyTfIdf(docs: Map<string, number>[]): Map<string, number>[] {
  * corpus)^strength. Words used evenly keep their count; words a document uses
  * more than the others grow, and words it uses less shrink. Unlike tf-idf, a
  * word every document uses can still matter if one uses it much more.
+ * Expects positive counts.
  */
 export function applyKeyness(docs: Map<string, number>[], strength = 1): Map<string, number>[] {
   if (docs.length < 2) return docs;
@@ -88,6 +93,31 @@ export function applyKeyness(docs: Map<string, number>[], strength = 1): Map<str
           const ratio = n / totals[i] / (corpus.get(w)! / all);
           return [w, n * ratio ** strength] as [string, number];
         }),
+      ),
+  );
+}
+
+/**
+ * Each word's weight before ranking: its count, times its idf with tf-idf, times
+ * its keyness factor with `distinctiveness` > 0. Both factors come from the raw
+ * counts, so they don't feed into each other. Words left with a weight of 0
+ * (with tf-idf, those in every document) are dropped, so they can't come back
+ * as filler.
+ */
+export function weighCounts(
+  docs: Map<string, number>[],
+  weighting: 'tf' | 'tfidf',
+  distinctiveness: number,
+): Map<string, number>[] {
+  const positive = docs.map((d) => new Map([...d].filter(([, n]) => n > 0 && Number.isFinite(n))));
+  const idf = weighting === 'tfidf' && positive.length > 1 ? inverseDocumentFrequency(positive) : null;
+  const keyed = distinctiveness > 0 ? applyKeyness(positive, distinctiveness) : positive;
+  return keyed.map(
+    (doc) =>
+      new Map(
+        [...doc]
+          .map(([w, n]): [string, number] => [w, idf ? n * idf.get(w)! : n])
+          .filter(([, n]) => n > 0 && Number.isFinite(n)),
       ),
   );
 }

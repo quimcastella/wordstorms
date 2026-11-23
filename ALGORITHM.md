@@ -45,6 +45,11 @@ For each document:
    often as the whole collection is multiplied by `2^s`. Unlike tf-idf, a
    word every document uses is not zeroed, so the clouds keep shared words to
    line up.
+
+   Both factors come from the counts of step 6, and with both on they
+   multiply. Words left at 0 (with tf-idf, those in every document) are
+   dropped rather than kept as filler, so a cloud can have fewer than
+   `maxWords` words, or none if every word it has is in every document.
 9. Sort by count (ties alphabetically) and keep the top `maxWords`.
 10. **Size contrast** (`sizeExponent` = e, default 1): raise each count to the
     power e. Above 1 widens the gap between the top word and the rest, below

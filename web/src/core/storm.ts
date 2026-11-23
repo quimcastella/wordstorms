@@ -4,7 +4,7 @@ import { boxMask, type Angle, type Glyph, type GlyphMeasurer, type Mask } from '
 import { PALETTES, type Palette, type PaletteName } from './palettes.ts';
 import { createRng, type Rng } from './random.ts';
 import type { StopwordLanguage } from './stopwords.ts';
-import { applyKeyness, applyTfIdf, countWords, normalizeWeights, sortCounts, type TextCase } from './text.ts';
+import { countWords, normalizeWeights, sortCounts, weighCounts, type TextCase } from './text.ts';
 
 export interface Doc {
   name: string;
@@ -224,9 +224,11 @@ export function generateStorm(
 
 /** Each document's top words, linked across clouds through a shared Entry per word. */
 function selectWords(docs: Doc[], opts: StormOptions): WordState[][] {
-  let counts = docs.map((d) => countWords(d.text, opts));
-  if (opts.weighting === 'tfidf') counts = applyTfIdf(counts);
-  if (opts.distinctiveness > 0) counts = applyKeyness(counts, opts.distinctiveness);
+  const counts = weighCounts(
+    docs.map((d) => countWords(d.text, opts)),
+    opts.weighting,
+    opts.distinctiveness,
+  );
   const top = counts.map((c) =>
     normalizeWeights(sortCounts(c).slice(0, opts.maxWords).map(([w, n]): [string, number] => [w, n ** opts.sizeExponent])),
   );

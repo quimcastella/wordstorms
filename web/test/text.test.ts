@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { applyKeyness, applyTfIdf, countWords, mergePlurals, normalizeWeights, sortCounts, tokenize } from '../src/core/text.ts';
+import {
+  applyKeyness,
+  applyTfIdf,
+  countWords,
+  mergePlurals,
+  normalizeWeights,
+  sortCounts,
+  tokenize,
+  weighCounts,
+} from '../src/core/text.ts';
 
 const opts = { textCase: 'lower', stopwords: 'english', extraStopwords: [], excludeNumbers: true } as const;
 
@@ -77,5 +86,47 @@ describe('applyKeyness', () => {
   it('does nothing at strength 0', () => {
     const docs = [new Map([['x', 3]]), new Map([['y', 4]])];
     expect(applyKeyness(docs, 0)).toEqual(docs);
+  });
+});
+
+describe('weighCounts', () => {
+  const finite = (docs: Map<string, number>[]) => docs.every((d) => [...d.values()].every((n) => Number.isFinite(n) && n > 0));
+
+  it('combines tf-idf and keyness without NaN, dropping words in every document', () => {
+    const docs = [new Map([['common', 5], ['rare', 1]]), new Map([['common', 2], ['other', 3]])];
+    const out = weighCounts(docs, 'tfidf', 0.2);
+    expect(finite(out)).toBe(true);
+    expect([...out[0].keys()]).toEqual(['rare']);
+    expect([...out[1].keys()]).toEqual(['other']);
+  });
+
+  it('multiplies idf and keyness, both from the raw counts', () => {
+    const docs = [new Map([['a', 4], ['b', 1]]), new Map([['b', 3], ['c', 2]]), new Map([['c', 5]])];
+    const idf = (df: number) => Math.log(3 / df) / Math.log(3);
+    const [a] = weighCounts(docs, 'tfidf', 1);
+    const [k] = applyKeyness(docs, 1);
+    expect(a.get('a')).toBeCloseTo(k.get('a')! * idf(1));
+    expect(a.get('b')).toBeCloseTo(k.get('b')! * idf(2));
+  });
+
+  it('leaves nothing for identical documents with tf-idf', () => {
+    const doc = new Map([['x', 3], ['y', 1]]);
+    expect(weighCounts([doc, new Map(doc)], 'tfidf', 0.5).map((d) => d.size)).toEqual([0, 0]);
+  });
+
+  it('handles disjoint vocabularies and empty documents', () => {
+    const docs = [new Map([['x', 2]]), new Map([['y', 4]]), new Map<string, number>()];
+    for (const weighting of ['tf', 'tfidf'] as const) {
+      for (const s of [0, 0.5, 1]) {
+        const out = weighCounts(docs, weighting, s);
+        expect(finite(out)).toBe(true);
+        expect(out.map((d) => d.size)).toEqual([1, 1, 0]);
+      }
+    }
+  });
+
+  it('drops zero, negative and non-finite counts', () => {
+    const [d] = weighCounts([new Map([['a', 0], ['b', -1], ['c', NaN], ['d', Infinity], ['e', 2]])], 'tf', 0);
+    expect([...d]).toEqual([['e', 2]]);
   });
 });
