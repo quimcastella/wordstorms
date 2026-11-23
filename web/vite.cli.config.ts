@@ -1,7 +1,7 @@
 // Bundles the command line (scripts/storm.ts) into one JavaScript file for the
 // published package: Node won't strip TypeScript types inside node_modules.
-// Dependencies stay external; the example texts and the license are copied next to it.
-import { copyFileSync, cpSync } from 'node:fs';
+// Dependencies stay external; the example texts are copied next to it.
+import { cpSync } from 'node:fs';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -18,7 +18,6 @@ export default defineConfig({
       name: 'copy-examples',
       closeBundle() {
         cpSync('../examples', 'dist-cli/examples', { recursive: true });
-        copyFileSync('../LICENSE.txt', 'dist-cli/LICENSE.txt');
       },
     },
   ],
