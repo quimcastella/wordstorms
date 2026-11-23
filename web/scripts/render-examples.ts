@@ -1,5 +1,5 @@
 // Renders every built-in example, in its own look, to PNGs in out/examples/,
-// for checking looks and seeds. The README's image (docs/images/shakespeare.png) is copied from here.
+// for checking looks and seeds. The README's images in docs/images/ are copied from here.
 //
 //   npm run render-examples
 import { createCanvas, GlobalFonts } from '@napi-rs/canvas';

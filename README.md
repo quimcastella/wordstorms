@@ -11,6 +11,13 @@ your computer.
 
 ![A word storm of three Shakespeare tragedies and three comedies](docs/images/shakespeare.png)
 
+![A word storm of six collections of fairy tales and fables](docs/images/fairytales.png)
+
+Six collections of fairy tales and fables. Bold words appear in more than one
+collection and sit in the same spot in every cloud: *little* in Grimm, Andersen
+and Perrault, *king* in four of the six. Thin words belong to one collection,
+like the lion, wolf and fox of Aesop's fables.
+
 Word storms come from the paper
 [*Word Storms: Multiples of Word Clouds for Visual Comparison of Documents*](https://arxiv.org/abs/1301.0503)
 by Quim Castella and Charles Sutton (WWW 2014). This repository has the code
@@ -140,8 +147,8 @@ Where things are:
 | [archive/](archive/) | Keepsakes from the original 2012 Java version; the full code is at the `java-original` tag |
 
 After changing an example, run `npm run render-examples` to check how all three
-look. The README image is `web/out/examples/shakespeare.png` from that run,
-copied to `docs/images/`. The example texts are public domain, from Project
+look. The README images are `shakespeare.png` and `fairytales.png` from
+`web/out/examples/` after that run, copied to `docs/images/`. The example texts are public domain, from Project
 Gutenberg; `npm run build-corpora` downloads and cleans them again (it strips
 the Gutenberg boilerplate and, for plays, speaker names and stage directions).
 
