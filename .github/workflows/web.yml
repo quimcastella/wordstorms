@@ -37,7 +37,9 @@ jobs:
 
   deploy:
     # Publishes the app to GitHub Pages from master.
-    # One-time setup: Settings → Pages → Source: "GitHub Actions".
+    # One-time setup: Settings → Pages → Source: "GitHub Actions", custom domain
+    # wordstorms.org, with the domain's DNS pointed at GitHub Pages as GitHub
+    # describes there. The build uses relative paths, so a sub-path works too.
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
