@@ -9,30 +9,31 @@ cloud, so similar documents look similar and what's distinctive stands out.
 and download the clouds. It runs in your browser, and your files never leave
 your computer.
 
+![A word storm of six collections of fairy tales and fables](docs/images/fairytales.png)
+
+Six collections of fairy tales and fables. Bold words appear in more than one
+collection and sit in the same spot in every cloud: *little* in Grimm, Andersen
+and Perrault, *king* in four of the six. Thin words belong to one collection,
+like the lion, wolf and fox of Aesop's fables.
+
 ![A word storm of three Shakespeare tragedies and three comedies](docs/images/shakespeare.png)
+
+Three tragedies (top) and three comedies (bottom), dialogue only. *Heart* is in
+all six plays and *heaven* only in the tragedies. *Love* is in every play
+except Macbeth, which has *fear*, *blood* and *sleep* instead.
 
 Word storms come from the paper
 [*Word Storms: Multiples of Word Clouds for Visual Comparison of Documents*](https://arxiv.org/abs/1301.0503)
 by Quim Castella and Charles Sutton (WWW 2014). This repository has the code
 behind the site, a command-line tool, and a TypeScript library.
 
-## Getting started
-
-You need [Node.js](https://nodejs.org) 22.18 or newer. Everything lives in
-`web/`, and the `npm run` commands below run from there.
-
-```bash
-git clone https://github.com/quimcastella/wordstorms.git
-cd wordstorms/web
-npm install
-```
-
 ## Command line
 
 `wordstorms` makes a storm from text files and writes one SVG and one PNG per
 cloud into `./wordstorm`, all the same size so shared words line up when you
 stack them, plus an `index.html` that shows the clouds side by side (hover a
-word to find it in every cloud). It needs only Node.js, not a clone:
+word to find it in every cloud). It needs only
+[Node.js](https://nodejs.org) 22.18 or newer, not a clone:
 
 ```bash
 # One cloud per file in a folder
@@ -45,8 +46,9 @@ npx wordstorms a.txt b.txt c.txt --words 40 --distinct 30 --palette ocean --out 
 npx wordstorms --example holmes
 ```
 
-From a clone, `npm run storm -- <same arguments>` in `web/` runs the source
-directly; paths are relative to where you run it.
+From a clone (see [Development](#development)),
+`npm run storm -- <same arguments>` in `web/` runs the source directly; paths
+are relative to where you run it.
 
 | Option | What it does | Default |
 |---|---|---|
@@ -70,9 +72,10 @@ cloud's title. SVGs embed their font, so they look the same anywhere.
 
 ## Use it as a library
 
-The library isn't published to npm; import it from your clone. The layout code
-has no DOM dependency. Give it a way to measure text: a canvas in the browser,
-or [`@napi-rs/canvas`](https://www.npmjs.com/package/@napi-rs/canvas) in Node.
+The npm package has only the command line; to use the library, import it from a
+clone (see [Development](#development)). The layout code has no DOM
+dependency. Give it a way to measure text: a canvas in the browser, or
+[`@napi-rs/canvas`](https://www.npmjs.com/package/@napi-rs/canvas) in Node.
 
 ```ts
 import { generateStorm, createCanvasMeasurer, cloudToSvg } from './web/src/index.ts';
@@ -111,6 +114,15 @@ implementation differs from the one used for the paper.
 
 ## Development
 
+You need [Node.js](https://nodejs.org) 22.18 or newer. Everything lives in
+`web/`, and the `npm run` commands below run from there.
+
+```bash
+git clone https://github.com/quimcastella/wordstorms.git
+cd wordstorms/web
+npm install
+```
+
 `npm run dev` starts the site at http://localhost:5173. Link to an example with
 `?example=shakespeare` (or `holmes`, `fairytales`), or go straight to Make your
 own with `#create`.
@@ -140,10 +152,11 @@ Where things are:
 | [archive/](archive/) | Keepsakes from the original 2012 Java version; the full code is at the `java-original` tag |
 
 After changing an example, run `npm run render-examples` to check how all three
-look. The README image is `web/out/examples/shakespeare.png` from that run,
-copied to `docs/images/`. The example texts are public domain, from Project
-Gutenberg; `npm run build-corpora` downloads and cleans them again (it strips
-the Gutenberg boilerplate and, for plays, speaker names and stage directions).
+look. The README images are `fairytales.png` and `shakespeare.png` from
+`web/out/examples/` after that run, copied to `docs/images/`. The example texts
+are public domain, from Project Gutenberg; `npm run build-corpora` downloads
+and cleans them again (it strips the Gutenberg boilerplate and, for plays,
+speaker names and stage directions).
 
 ## Citing
 
