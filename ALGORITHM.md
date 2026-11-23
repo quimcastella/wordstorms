@@ -1,116 +1,86 @@
-# The Word Storm algorithm
+# How a word storm is made
 
-This is the algorithm as implemented in [web/src/core/](web/src/core/). It
-follows the original implementation used for the paper (Java, built on WordCram
-and Processing; removed from this repository, but still in its git history).
-Quirks of the original are called out as **Original**, and places where this
-implementation deliberately differs as **Port**.
-
-Method reference: Quim Castella and Charles Sutton, *Word Storms: Multiples of
-Word Clouds for Visual Comparison of Documents*, WWW 2014.
+This describes the algorithm in [web/src/core/](web/src/core/), from text to
+placed words. The method is from Quim Castella and Charles Sutton,
+[*Word Storms: Multiples of Word Clouds for Visual Comparison of Documents*](https://arxiv.org/abs/1301.0503),
+WWW 2014. The last section lists where this implementation differs from the
+one used for the paper.
 
 ## Inputs and outputs
 
 - **Input:** a list of documents `{name, text}`. Each document becomes one cloud.
-- **Output:** for every cloud, a list of placed words with `text`, font `size`,
-  `angle` (0 or ±π/2), `color`, and the top-left corner `(x, y)` of the word's
-  tight bounding box, all in one shared coordinate frame of `width × height`.
+- **Output:** for every cloud, a list of placed words with their text, font
+  size, angle (0 or ±90°), color, opacity, and the top-left corner of the
+  word's tight bounding box. All clouds share one coordinate frame of
+  `width × height` px, so a position means the same thing in every cloud.
 
-Defaults used by the original: 25 words per cloud, 640×480 clouds,
-font sizes 8–65 px, seed 123456.
+Defaults: 35 words per cloud, 640×480 px clouds, font sizes 8–65 px, seed
+123456. [`StormOptions`](web/src/core/storm.ts) lists every option.
 
-## 1. Text → weighted words (per document)
+## 1. Choosing the words
 
-1. Lower-case the text (`textCase`: lower by default; upper and as-is exist).
-2. Tokenize. A token is `[@+letter/digit]+` optionally joined by
-   `- . : / ' ’ U+2032 NBSP ZWNJ ZWJ ~` or combining marks to more letter/digit
-   runs (cue.language `WordIterator`).
-3. Drop stop words: single-character tokens, and tokens in the stop list
-   (cue.language guesses the language by which list matches the most tokens;
-   English is the one that matters for the examples). `’` is normalized to `'`
-   before lookup.
-   **Port:** the default list is `extended`: the list above plus common
-   verbs, adverbs and determiners (one, now, come, went, must, much…), early
-   modern English function words (thou, hath, 'tis…) and title
-   abbreviations (mr, mrs, dr). The original list is still available as
-   `english`, which `PAPER_OPTIONS` uses.
-4. Drop tokens that parse as numbers. **Port:** also strip a trailing `'s`
-   so possessives count with their noun (`romney's` → `romney`); the stop
-   list is checked before stripping, so `it's` and `that's` stay stop words.
-5. Count occurrences.
-6. Merge plurals: if both `x` and `xs` exist, add the count of `xs` to `x` and
-   drop `xs`. **Original:** the loop removes items while iterating, so some
-   pairs are skipped (its output has both `job` and `jobs` in some clouds).
-   **Port:** merge all pairs.
-7. Sort by count, descending. Ties: **Original:** `Word.compareTo` order on
-   equal weights is not specified here; **Port:** break ties alphabetically.
-8. Keep the top `maxWords`.
-9. Normalize: `weight_i = 1.2 · count_i · n / (2 · Σcount)`, so the mean
-   weight is 0.6. `origWeight = weight`.
+For each document:
 
-### Port: keyness and size contrast
+1. Lower-case the text.
+2. Split it into tokens: runs of letters and digits, which may be joined by
+   `- . : / ' ’` and a few other connecting characters (so `co-op`, `e-mail`
+   and `don't` are single tokens).
+3. Drop stop words: one-letter tokens and words in the stop list. The default
+   list, `extended`, has common English function words plus common verbs,
+   adverbs and determiners (one, now, come, went, must, much…), early modern
+   English function words (thou, hath, 'tis…) and title abbreviations (mr,
+   mrs, dr). `’` is treated as `'`.
+4. Drop numbers, and strip a trailing `'s` so possessives count with their
+   noun. The stop list is checked first, so `it's` stays a stop word.
+5. Count each word.
+6. Merge plurals: if both `x` and `xs` appear, add the count of `xs` to `x`.
+7. **Optional tf-idf** (`weighting: "tfidf"`): multiply each count by
+   `idf(w) = ln(D / df(w)) / ln(D)`, where `D` is the number of documents and
+   `df(w)` the number whose text has the word. A word in every document drops
+   to 0.
+8. **Keyness** (`distinctiveness` = s, from 0 to 1; default 0.2): multiply each
+   count by `(rate_doc(w) / rate_all(w))^s`, where a rate is the word's count
+   over all counted words, in this document or in all of them. A word used at
+   the same rate everywhere keeps its count; one this document uses twice as
+   often as the whole collection is multiplied by `2^s`. Unlike tf-idf, a
+   word every document uses is not zeroed, so the clouds keep shared words to
+   line up.
+9. Sort by count (ties alphabetically) and keep the top `maxWords`.
+10. **Size contrast** (`sizeExponent` = e, default 1): raise each count to the
+    power e. Above 1 widens the gap between the top word and the rest, below
+    1 narrows it.
+11. Normalize: `weight_i = 1.2 · c_i · n / (2 · Σc)` for the n kept words, so the
+    mean weight is 0.6.
 
-Two port-only steps (`PAPER_OPTIONS` turns keyness off):
+Words kept by two or more documents are **shared**; the rest are **unique** to
+one cloud.
 
-- **Keyness** (`distinctiveness` = s, default 0.2), between steps 5 and 7:
-  multiply each count by `(rate_doc(w) / rate_corpus(w))^s`, where a rate is
-  the word's count over all counted words. A word used at the same rate
-  everywhere keeps its count; one a document uses twice as much as the corpus
-  is multiplied by `2^s`. Unlike tf-idf, a word in every document is not
-  zeroed, so shared words stay to coordinate.
-- **Size contrast** (`sizeExponent` = e, default 1 as in the original): step 9
-  normalizes `count^e` instead of `count`; `e > 1` widens the gap between the
-  top word and the rest, `e < 1` narrows it.
-
-### Optional idf
-
-`D` = number of clouds, `idf(w) = ln(D / df(w)) / ln(D)` (0 for a word in
-every cloud, 1 for a word in one cloud).
-
-- `weighting: "tfidf"` (original `tfIdf = 1`): between steps 7 and 8, multiply
-  every counted word's count by idf, where `df` counts the documents whose
-  *full* vocabulary contains the word, then re-sort. Steps 8–9 then apply as
-  usual.
-- `idfColor` (original `tfIdf = 2`): weights untouched; `df` counts the clouds
-  whose *top* words contain the word, and idf only sets color opacity (see 3).
-
-## 2. The shared index
-
-For each distinct word across clouds, keep a `CoordProp`: which clouds contain
-it, the word object per cloud, the current location per cloud (unset at
-first), the average of the set locations, its color, angle and idf.
-
-Words that appear in only one cloud are **unique**; they are set aside after
-the index is built and placed at the very end (step 6), at their original
-weight.
-
-## 3. Size, angle and color
+## 2. Size, angle and color
 
 - **Size:** `size = lerp(8, 65, weight)` px.
-- **Angle**, coordinated (`coorAngler`): one angle per word for the whole
-  storm, picked uniformly from `[0, 0, 0, 0, 0, +π/2, −π/2]`.
-  Independent: same distribution, drawn per cloud.
-  **Port:** the vertical share is an option (`verticalShare`, default 2/7 as in the
-  original, split evenly between +π/2 and −π/2).
-- **Color**, coordinated (`coorColorer`): one color per word. HSB on a 0–255
-  scale: hue `U(0,256)`, saturation 200, brightness `50 + U(0,150)`. With
-  `idfColor`, alpha is a logistic of idf so words shared by every cloud fade:
-  `alpha = 2.55 · (40 + 60 / (1 + e^(−20 (idf − 0.2))))` (≈40% → 100%).
-  Independent: same HSB distribution, drawn per word per cloud, opaque.
-  **Port:** colors come from a palette (uniform pick from its list, same
-  coordination rules); the `classic` palette keeps the HSB distribution above.
-  `idfColor` fading is off by default.
-- **Port: marking shared words** (`markShared`):
-  - `none` (the default): no marking, as in the original.
-  - `weight`: words that only one cloud has are measured and drawn in the
-    font's light weight.
-  - `warmth`: the color comes from the palette's warm list for shared words
-    and its cool list for the others. `classic` uses HSB hue ranges instead.
+- **Angle:** horizontal, or vertical with probability `verticalShare`
+  (default 2/7), split evenly between +90° and −90°.
+- **Color:** a uniform pick from the palette. The `classic` palette instead
+  draws random HSB colors (0–255 scale: hue uniform, saturation 200,
+  brightness 50–200).
+- **Marking shared words** (`markShared`):
+  - `none` (default): nothing beyond the above.
+  - `weight`: unique words are measured and drawn in the font's light weight.
+  - `warmth`: shared words take colors from the palette's warm list, unique
+    words from its cool list. With `classic`, the random hue is drawn from
+    magenta to orange for shared words and from green to indigo for the rest.
+- **Fading** (`fadeCommonWords`, off by default): a word's opacity falls with
+  how many clouds share it, `opacity = 0.4 + 0.6 / (1 + e^(−20 (idf − 0.2)))`,
+  where `idf` is computed as in step 7 but over the clouds' kept words. A word
+  in every cloud ends up at about 40%.
 
-## 4. Placement primitive (spiral search)
+In a word storm, a shared word gets one angle and one color, used in every
+cloud. In separate clouds, each cloud draws its own.
 
-Given a desired top-left location `d` for a word with box `w × h` on a field
-`W × H`:
+## 3. Placing one word: the spiral search
+
+Given a desired top-left position `d` for a word with box `w × h` in a field
+`W × H`, walk an outward spiral until the word fits:
 
 ```
 for attempt in 0 ..< 5000:
@@ -120,89 +90,70 @@ for attempt in 0 ..< 5000:
   θ    = step · attempt
   p    = d + (r cos θ, r sin θ)
   if p is outside [0, W−w) × [0, H−h): continue
-  if word at p collides with an already-placed word in this cloud: continue
+  if the word at p collides with a word already in this cloud: continue
   return p
 fail
 ```
 
-Collision is tested on the glyph shape (a quadtree of boxes down to 1 px,
-padded by 1 px), except in the Combined/Force algorithms, where shared words
-collide as bounding boxes only. **Port:** glyph collision uses a 1-bit pixel
-mask per word, tested against a per-cloud bitmap (the d3-cloud technique);
-box collision stays boxes.
+Collision is tested on the letters' shapes: each word is a 1-bit pixel mask,
+grown by 1 px, checked against a bitmap of the cloud. In the force phase
+(4c), shared words collide as boxes instead.
 
-The default desired location (`centerClump`) is
-`round(map(N(0,1) · 0.4, −2, 2, 0, W − w))` for x, and the same with `H − h`
-for y: a Gaussian clump around the center.
+When there is no better guess, the desired position is a Gaussian clump around
+the field's center: `x = round(map(N(0,1) · 0.4, −2, 2, 0, W − w))`, and the
+same for y with `H − h`.
 
-## 5. Coordinated layout
+## 4. The word storm (coordinated layout)
 
-### 5a. Iterative (original `coorPlacer = 1`, and the first phase of Combined)
+Shared words are laid out first, in all clouds together; unique words fill in
+around them at the end. This happens on a half-size field (320×240 for
+640×480) with full-size fonts, so the first layout is crowded and the force
+phase has to spread it out; step 6 scales everything back to fit.
 
-Per pass, for each cloud in order, for each shared word in descending weight:
+### 4a. Iterative placement
 
-- desired location = the average of this word's current locations in all
-  clouds where it has one; if it has none yet, a tighter Gaussian clump
-  (`σ = 0.2` instead of 0.4);
-- place it with the spiral search;
-- after the whole cloud is placed, write all its locations back to the index
-  (so later clouds in the same pass see them).
+In each pass, for each cloud in order, place its shared words in descending
+weight with the spiral search, starting from the average of the word's current
+positions in the other clouds (or, if it has none yet, a tighter Gaussian
+clump with σ = 0.2 instead of 0.4). After a cloud is done, its positions
+become visible to the clouds after it.
 
-If any word in any cloud fails to place, multiply every word's weight and size
-in every cloud by 0.9 and restart the pass from cloud 0.
+If any word in any cloud fails to place, every size is multiplied by 0.9 and
+the pass starts over.
 
-A word instance has **converged** when it is within `tol` px of its average.
-Repeat passes while some instance hasn't converged, up to `maxIterations`
-(5). With `tol = −1` only one pass is done.
+A word has **converged** when it is within `tolerance` px (default 50) of its
+average position. Passes repeat until every word has converged, up to
+`maxIterations` (default 5). A tolerance of −1 means a single pass.
 
-**Original:** Combined runs this phase on a half-size field (320×240 for
-640×480) with the same font sizes, so the first layout is crowded and the
-force phase has to spread it out. The port keeps this, since it shapes the
-result.
+### 4b. Force refinement
 
-### 5b. Force (original `coorPlacer = 3`, and the second phase of Combined)
+Each iteration moves every shared word, in every cloud, by `−step`, where
+`step` is the sum of three gradients:
 
-Each iteration, for each cloud, for each shared word in order, move the word by
-`−step`, where `step` is the sum of three gradients:
-
-- **Same word (stress)**, weight `sameEps`:
-  for every other cloud `j` that contains the word,
-  `step += sameEps · 1e-6 · S[j][i] · (cur − loc_j)`, where `S` is the
-  per-cloud-pair stress term below. `S` is negative when the clouds' layouts
-  are farther apart than their texts, which pulls the word toward its
-  position in similar clouds.
-- **Overlap**, weight `overEps`: for every word it currently overlaps (as
-  boxes) in this cloud, add the minimal axis-aligned push that separates them
-  (whichever of left, right, up, down needs the least distance), times
-  `0.1 · overEps`.
-- **Compactness**, weight `compEps`: the vector from the field center to the
+- **Same word**, weight `sameEps`: for every other cloud `j` that has the word,
+  `step += sameEps · 1e-6 · S[j][i] · (cur − loc_j)`. `S` (below) is negative
+  when two clouds' layouts are farther apart than their texts, which pulls the
+  word toward its position in similar clouds.
+- **Overlap**, weight `overEps`: for every word it overlaps (as boxes) in this
+  cloud, add the shortest left, right, up or down push that separates them,
+  times `0.1 · overEps`.
+- **Compactness**, weight `compEps`: the vector from the field's center to the
   word, normalized if longer than 1, times `0.1 · compEps`.
 
-`|step|` is clamped to 30 px. There is no collision search in this phase:
-words just move. Overlaps are recorded after each move, against the words of
-that cloud already moved in this iteration, symmetrically.
+`|step|` is capped at 30 px. Words simply move; there is no collision search in
+this phase. Overlaps are recorded after each move, against the words of that
+cloud already moved in this iteration.
 
-**Stress matrix:** for clouds `i, j`,
+**Similarity of clouds:** for clouds `i` and `j`,
 `docDis(i,j) = Σ_w (weight_i(w) − weight_j(w))²` over the union of their words
-(missing = 0), computed once at the start. `cloudDis(i,j) = docDis(i,j)` (with
-current weights) `+ Σ_{shared w} |loc_i(w) − loc_j(w)|²`.
-`S[i][j] = (docDis − cloudDis) / docDis` (denominator 1 if 0).
-**Original:** `S` is only recomputed when the progress line is printed
-(every 50 iterations). **Port:** recompute every iteration.
+(a missing word weighs 0), computed once at the start, and
+`cloudDis(i,j) = docDis(i,j) + Σ_{shared w} |loc_i(w) − loc_j(w)|²` with the
+current positions. Then `S[i][j] = (docDis − cloudDis) / docDis` (1 in the
+denominator if it is 0), recomputed every iteration.
 
-**Convergence:** `gradient` is the largest `|step|` in an iteration. Run the
-stages of the schedule in order; a stage ends when `gradient < 0.2`, the
-second-to-last when `gradient < 0.1001`, and the last when the largest single
-overlap penalty `< 10` or `gradient < 0.01` for two iterations in a row
-(overlap penalty = `(min overlap depth + 1)²`). **Original:** the largest
-overlap is reset every iteration but only recomputed when progress is printed,
-so the last stage usually ends immediately. **Port:** recompute it every
-iteration, so the last stage really pushes overlaps apart. Iterations are
-capped at 20,000 (original: 1,000,000).
+**Schedule:** the force phase runs through these stages in order:
 
-Combined schedule (`overEps, sameEps, compEps`):
-
-| stage | overlap | same word | compact |
+| stage | overlap | same word | compactness |
 |---|---|---|---|
 | 0 | 0 | 1 | 0 |
 | 1 | 0.1 | 1 | 0.5 |
@@ -212,38 +163,64 @@ Combined schedule (`overEps, sameEps, compEps`):
 | 5 | 1 | 0 | 0.9 |
 | 6 | 10 | 0 | 0 |
 
-Pure Force starts from random locations and uses an 8-stage schedule that
-ramps overlap up and same-word down; the port implements Combined first.
+`gradient` is the largest `|step|` in an iteration. A stage ends when
+`gradient < 0.2`, the second-to-last when `gradient < 0.1001`, and the last when
+the largest single overlap penalty, `(smallest overlap depth + 1)²`, is below 10
+or `gradient < 0.01`, for two iterations in a row. The whole phase stops after
+`maxForceIterations` (default 20,000) at most.
 
-## 6. Unique words
+### 4c. Unique words
 
-For each cloud, with the shared words fixed where they ended, place each
-unique word (descending weight) with the spiral search from a `centerClump`
-location, glyph collision, **no** field-bounds check. Unplaced ones are
-dropped.
+With the shared words fixed, each cloud places its unique words in descending
+weight with the spiral search from a Gaussian clump, using shape collision
+but no field-bounds check. Words that can't be placed are dropped and reported
+as skipped.
 
-## 7. Fit to output
+## 5. Separate clouds (independent layout)
 
-Take the union bounding box of every placed word in every cloud (2 px
-padding), translate so it starts at (0, 0), and scale positions and sizes by
-`min(W / boxW, H / boxH)`. Every cloud shares this transform, so the same
-word stays at the same spot across clouds. **Port:** also center the result
-in the frame (the original leaves it at the top-left).
+Each cloud is laid out on its own: every word, in descending weight, goes
+through the spiral search from a Gaussian clump, with shape collision and the
+field-bounds check, on the full-size field. Nothing is shared between clouds,
+including colors and angles.
 
-**Port (independent mode):** every word is placed in weight order with glyph
-collision and the field-bounds check; the original placed shared and
-unique words in two rounds even though nothing is coordinated.
+## 6. Fitting the result
 
-## Modes exposed by the port
-
-| Port mode | Original settings | What you get |
-|---|---|---|
-| `independent` | `coorPlacer 0`, no coordination | Separate clouds, for comparison |
-| `coordinated` | `coorPlacer 4` (Combined), coordinated color + angle, `idfColor`, `tol 50`, 5 iterations | The word storm |
+Take the bounding box of every placed word in every cloud (plus 2 px), scale
+positions and sizes by `min(W / boxW, H / boxH)`, and center the result in the
+frame. Every cloud gets the same transform, so a shared word stays at the same
+spot across clouds.
 
 ## Randomness
 
-All randomness comes from one seeded generator (**Port:** mulberry32 plus
-Box–Muller for Gaussians), so a given seed gives the same storm. The port does
-not reproduce the original's `java.util.Random` sequence, so layouts match the
-original in character, not pixel for pixel.
+All randomness comes from one seeded generator (mulberry32, with Box–Muller
+for Gaussians), so the same seed and settings always give the same storm.
+
+## Differences from the paper's implementation
+
+The paper's figures were made with an earlier Java implementation, built on
+WordCram and Processing. It is no longer in this repository but is kept at the
+`java-original` tag. `PAPER_OPTIONS` sets this implementation to the paper's
+settings: 25 words, plain counts, the shorter English stop list, random HSB
+colors and fading of common words. Layouts match the original in character, not
+pixel for pixel, because the random number generators differ. Beyond that:
+
+- **Word choice:** the original stop list is the shorter `english` one; it
+  didn't strip possessives; its plural merging skipped some pairs because of a
+  bug; and its order for tied counts was unspecified. Keyness
+  (`distinctiveness`) and size contrast (`sizeExponent`) are new.
+- **Look:** the original used random HSB colors only (the `classic` palette)
+  and always made 2 in 7 words vertical. Palettes, the vertical share and
+  marking shared words are new.
+- **Collision:** the original tested shapes with a quadtree of boxes down to
+  1 px. Here each word is a pixel mask (the technique d3-cloud uses), which has
+  the same 1 px precision and is faster.
+- **Force phase:** the original recomputed the cloud similarity `S` and the
+  largest overlap only every 50 iterations, when it printed progress, so its
+  last stage usually ended at once. Here both are recomputed every iteration,
+  so the last stage really pushes overlaps apart. The original's iteration cap
+  was 1,000,000.
+- **Separate clouds:** the original placed shared and unique words in two
+  rounds even when nothing was coordinated; here every word is placed in one
+  round by weight.
+- **Fitting:** the original left the result at the top-left of the frame
+  instead of centering it.

@@ -13,7 +13,7 @@ up upon down in out on off over under again further then once here there when wh
 all any both each few more most other some such no nor not only own same so than too very
 say says said shall`;
 
-// Port addition: high-frequency verbs, adverbs and determiners that crowd out
+// Added to the original list: high-frequency verbs, adverbs and determiners that crowd out
 // content words in longer texts, early modern English function words (for
 // Shakespeare and the like), and title abbreviations. Nouns and adjectives
 // (man, time, good, little) are kept; the idf fade already mutes the ones

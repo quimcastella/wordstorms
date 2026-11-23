@@ -5,7 +5,8 @@ import '@fontsource/bricolage-grotesque/700.css';
 import { strToU8, zipSync, type Zippable } from 'fflate';
 import { PALETTES, type PaletteName } from '../core/palettes.ts';
 import type { Doc, Storm, StormOptions } from '../core/storm.ts';
-import { cloudToSvg, cropStorm } from '../render/svg.ts';
+import { cloudFileNames, cropStorm } from '../render/export.ts';
+import { cloudToSvg } from '../render/svg.ts';
 import { setupComparison } from './compare.ts';
 import { computeStorm, pageFont, type Job } from './compute.ts';
 import { EXAMPLES, exampleById, loadExampleDocs, type Example, type ExampleLook } from './examples.ts';
@@ -584,18 +585,6 @@ function download(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-/** A file name per cloud, safe on every OS and unique within the zip. */
-function fileNames(s: Storm, ext: string): string[] {
-  const used = new Set<string>();
-  return s.clouds.map((c, i) => {
-    const base = c.name.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim() || `cloud ${i + 1}`;
-    let name = `${base}.${ext}`;
-    for (let k = 2; used.has(name.toLowerCase()); k++) name = `${base} (${k}).${ext}`;
-    used.add(name.toLowerCase());
-    return name;
-  });
-}
-
 const zipName = (kind: string) => `${createFrom?.id ?? 'wordstorm'}-${kind}.zip`;
 
 /** Each cloud as a standalone SVG in the shared, cropped frame, with its background and the font embedded. */
@@ -637,7 +626,7 @@ ui.dlSvg.onclick = () =>
     if (!storm) return;
     const s = storm;
     const svgs = await cloudSvgs(s);
-    const names = fileNames(s, 'svg');
+    const names = cloudFileNames(s, 'svg');
     const files: Zippable = Object.fromEntries(svgs.map((svg, i) => [names[i], strToU8(svg)]));
     download(new Blob([zipSync(files, { level: 6 })], { type: 'application/zip' }), zipName('svg'));
   });
@@ -646,7 +635,7 @@ ui.dlPng.onclick = () =>
     if (!storm) return;
     const s = storm;
     const svgs = await cloudSvgs(s);
-    const names = fileNames(s, 'png');
+    const names = cloudFileNames(s, 'png');
     const pngs = await Promise.all(svgs.map((svg) => svgToPng(svg)));
     // PNGs are already compressed; store them as they are.
     const files: Zippable = Object.fromEntries(pngs.map((png, i) => [names[i], [png, { level: 0 }]]));

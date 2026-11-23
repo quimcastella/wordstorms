@@ -29,7 +29,7 @@ export function countWords(text: string, opts: CountOptions): Map<string, number
   for (const raw of tokenize(folded)) {
     const key = raw.replace(/’/g, "'").toLowerCase();
     if (stop.has(key) || extra.has(key)) continue;
-    // Count possessives with their noun ("romney's" → "romney").
+    // Count possessives with their noun ("holmes's" → "holmes").
     const token = raw.replace(/['’][sS]$/, '');
     if ([...token].length === 1) continue;
     if (stop.has(token.toLowerCase()) || extra.has(token.toLowerCase())) continue;

@@ -116,7 +116,9 @@ const svgs = storm.clouds.map((cloud) => cloudToSvg(cloud, storm.width, storm.he
 ```
 
 `PAPER_OPTIONS` gives the settings used in the paper
-(`generateStorm(docs, { ...PAPER_OPTIONS }, measurer)`).
+(`generateStorm(docs, { ...PAPER_OPTIONS }, measurer)`). `cropStorm` trims the
+clouds to a shared frame for saving, `cloudFileNames` gives safe file names,
+and `drawCloud` draws a cloud on a canvas.
 [web/scripts/storm.ts](web/scripts/storm.ts) is a complete Node example.
 
 ## How it works
@@ -164,7 +166,7 @@ All commands run from `web/`:
 | Path | What |
 |---|---|
 | [web/src/core/](web/src/core/) | Text processing, collision detection and layout (no DOM) |
-| [web/src/render/](web/src/render/) | SVG output |
+| [web/src/render/](web/src/render/) | Drawing clouds as SVG or on a canvas, and saving them as separate files |
 | [web/src/app/](web/src/app/) | The site |
 | [web/scripts/](web/scripts/) | Command line, example rendering, corpus building |
 | [web/test/](web/test/) | Tests |

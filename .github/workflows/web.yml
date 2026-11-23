@@ -26,6 +26,10 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - name: Command line smoke test
+        run: |
+          npm run storm -- --example holmes --format svg,png,json --out out/ci-storm
+          test "$(ls out/ci-storm | wc -l)" -eq 9
       - run: npx vite build
       - uses: actions/upload-pages-artifact@v4
         with:

@@ -1,5 +1,5 @@
 // Renders every built-in example, in its own look, to PNGs in out/examples/,
-// for checking looks and seeds and for README images.
+// for checking looks and seeds. The README's images in docs/images/ come from here.
 //
 //   npm run render-examples
 import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
@@ -7,10 +7,10 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateStorm, type Storm } from '../src/core/storm.ts';
-import { createCanvasMeasurer, cssFont } from '../src/measure/canvas.ts';
+import { createCanvasMeasurer, fontWeight, type FontSpec } from '../src/measure/canvas.ts';
+import { drawCloud } from '../src/render/canvas.ts';
 import { EXAMPLES } from '../src/app/example-list.ts';
 import { FONT_LIST } from '../src/app/font-list.ts';
-import { fontWeight, type FontSpec } from '../src/measure/canvas.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const inputRoot = join(here, '..', '..', 'examples');
@@ -49,15 +49,7 @@ function drawStorm(storm: Storm, title: string, font: FontSpec): Buffer {
     ctx.fillStyle = '#4b5563';
     ctx.font = '500 18px Helvetica';
     ctx.fillText(cloud.name, ox, oy + storm.height + 24);
-    for (const w of cloud.words) {
-      ctx.setTransform(1, 0, 0, 1, ox + w.x + w.originX, oy + w.y + w.originY);
-      ctx.rotate((w.angle * Math.PI) / 180);
-      ctx.font = cssFont(font, w.fontSize, w.light);
-      ctx.fillStyle = w.color;
-      ctx.globalAlpha = w.opacity;
-      ctx.fillText(w.text, 0, 0);
-      ctx.globalAlpha = 1;
-    }
+    drawCloud(ctx, cloud, font, { x: ox, y: oy });
   });
   return canvas.toBuffer('image/png');
 }

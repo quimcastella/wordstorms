@@ -12,8 +12,10 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { PALETTES, type PaletteName } from '../src/core/palettes.ts';
 import { DEFAULT_OPTIONS, generateStorm, type Cloud, type Doc, type StormOptions } from '../src/core/storm.ts';
-import { createCanvasMeasurer, cssFont, fontWeight, type FontSpec } from '../src/measure/canvas.ts';
-import { cloudToSvg, cropStorm } from '../src/render/svg.ts';
+import { createCanvasMeasurer, fontWeight, type FontSpec } from '../src/measure/canvas.ts';
+import { drawCloud } from '../src/render/canvas.ts';
+import { cloudFileNames, cropStorm } from '../src/render/export.ts';
+import { cloudToSvg } from '../src/render/svg.ts';
 import { EXAMPLES } from '../src/app/example-list.ts';
 import { FONT_LIST, LATIN, LATIN_EXT, type FontInfo } from '../src/app/font-list.ts';
 
@@ -174,28 +176,8 @@ function pngOf(cloud: Cloud, width: number, height: number, scale = 2): Buffer {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = storm.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  for (const w of cloud.words) {
-    ctx.setTransform(scale, 0, 0, scale, (w.x + w.originX) * scale, (w.y + w.originY) * scale);
-    ctx.rotate((w.angle * Math.PI) / 180);
-    ctx.font = cssFont(font.spec, w.fontSize, w.light);
-    ctx.fillStyle = w.color;
-    ctx.globalAlpha = w.opacity;
-    ctx.fillText(w.text, 0, 0);
-    ctx.globalAlpha = 1;
-  }
+  drawCloud(ctx, cloud, font.spec, { scale });
   return canvas.toBuffer('image/png');
-}
-
-/** A file name per cloud, safe on every OS and unique. */
-function fileNames(ext: string): string[] {
-  const used = new Set<string>();
-  return storm.clouds.map((c, i) => {
-    const base = c.name.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim() || `cloud ${i + 1}`;
-    let name = `${base}.${ext}`;
-    for (let k = 2; used.has(name.toLowerCase()); k++) name = `${base} (${k}).${ext}`;
-    used.add(name.toLowerCase());
-    return name;
-  });
 }
 
 const out = resolve(args.out ?? join(web, 'out', 'storm'));
@@ -204,13 +186,13 @@ const { clouds, width, height } = cropStorm(storm);
 const written: string[] = [];
 if (formats.includes('svg')) {
   const css = embeddedCss(font);
-  fileNames('svg').forEach((name, i) => {
+  cloudFileNames(storm, 'svg').forEach((name, i) => {
     writeFileSync(join(out, name), cloudToSvg(clouds[i], width, height, { font: font.spec, css, background: storm.background }));
     written.push(name);
   });
 }
 if (formats.includes('png')) {
-  fileNames('png').forEach((name, i) => {
+  cloudFileNames(storm, 'png').forEach((name, i) => {
     writeFileSync(join(out, name), pngOf(clouds[i], width, height));
     written.push(name);
   });

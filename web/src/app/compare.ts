@@ -1,4 +1,4 @@
-// The "Why a storm" section: the fairy tales as a word storm next to six
+// The "Why not just make separate clouds?" section: the fairy tales as a word storm next to six
 // separate clouds in the same font and palette, each laid out on its own the
 // way ordinary word-cloud tools would. Laid out once the section is near the
 // screen.
