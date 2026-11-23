@@ -36,13 +36,13 @@ export interface StormOptions {
    * shared words to coordinate.
    */
   distinctiveness: number;
-  /** Font size grows with count^sizeExponent: 1 is linear (Java), above 1 is more dramatic, below 1 evens sizes out. */
+  /** Font size grows with count^sizeExponent: 1 is linear (as in the original), above 1 is more dramatic, below 1 evens sizes out. */
   sizeExponent: number;
-  /** Share of words drawn vertically (Java: 2/7). */
+  /** Share of words drawn vertically (original: 2/7). */
   verticalShare: number;
   /**
    * How words several documents share stand apart from words only one uses.
-   * `none` (default): a random palette color per word, as in Java.
+   * `none` (default): a random palette color per word, as in the original.
    * `weight`: words only one document uses are drawn in the font's light weight.
    * `warmth`: shared words take warm palette colors, the rest cool ones.
    */
@@ -83,8 +83,8 @@ export const DEFAULT_OPTIONS: StormOptions = {
   maxForceIterations: 20000,
 };
 
-/** Overrides that reproduce the original Java version's word choice and look. */
-export const JAVA_OPTIONS: Partial<StormOptions> = {
+/** The settings used in the paper: plain counts, 25 words, the original stop list and colors. */
+export const PAPER_OPTIONS: Partial<StormOptions> = {
   maxWords: 25,
   stopwords: 'english',
   distinctiveness: 0,
@@ -195,7 +195,7 @@ export function generateStorm(
   let passes = 0;
   let forceIterations = 0;
   if (coordinated) {
-    // As in the Java version, the coordinated layout happens on a half-size
+    // As in the original, the coordinated layout happens on a half-size
     // field with full-size fonts, and the result is scaled to fit at the end.
     const field = { width: opts.width / 2, height: opts.height / 2 };
     const shared = clouds.map((ws) => ws.filter((w) => w.entry.words.length > 1));
@@ -477,12 +477,12 @@ class Layout {
         sizeOf.set(w, { w: g.width, h: g.height });
       }
     }
-    // Rectangle used for push directions and penalties (Java: bounds + 1 px).
+    // Rectangle used for push directions and penalties (as in the original: bounds + 1 px).
     const rect = (w: WordState): Rect => {
       const s = sizeOf.get(w)!;
       return { x: w.x, y: w.y, w: s.w + 1, h: s.h + 1 };
     };
-    // Rectangle used to detect overlaps (Java: integer box swollen by 1 px).
+    // Rectangle used to detect overlaps (as in the original: integer box swollen by 1 px).
     const hitRect = (w: WordState): Rect => {
       const s = sizeOf.get(w)!;
       return { x: Math.trunc(w.x) - 1, y: Math.trunc(w.y) - 1, w: Math.trunc(s.w) + 2, h: Math.trunc(s.h) + 2 };
@@ -553,7 +553,7 @@ class Layout {
       return { gradient, maxOverlap };
     };
 
-    // Stages (overlap, same word, compactness) from the Java Combined algorithm.
+    // Stages (overlap, same word, compactness) from the original's Combined algorithm.
     const schedule: [number, number, number][] = [
       [0, 1, 0],
       [0.1, 1, 0.5],

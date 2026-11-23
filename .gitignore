@@ -1,11 +1,9 @@
-*.iml
+# Editors, OS and local tool settings
 .idea/
-WordStorm.iml
-bin
-
-# Java build output
-build/
-dist/
+.vscode/
+*.iml
+.DS_Store
+.claude/
 
 # Local test documents (third-party papers, not redistributable)
 test-texts/

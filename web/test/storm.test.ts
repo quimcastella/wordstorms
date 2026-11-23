@@ -6,14 +6,14 @@ import { PALETTES } from '../src/core/palettes.ts';
 import { generateStorm, type Storm } from '../src/core/storm.ts';
 import { createCanvasMeasurer } from '../src/measure/canvas.ts';
 
-const dir = join(__dirname, '..', '..', 'examples', 'data', 'input', 'PresidentialDebate');
+const dir = join(__dirname, '..', '..', 'examples', 'Shakespeare');
 const docs = readdirSync(dir)
   .filter((f) => f.endsWith('.txt'))
   .sort()
   .map((f) => ({ name: f, text: readFileSync(join(dir, f), 'utf8') }));
 const measurer = () => createCanvasMeasurer((w, h) => createCanvas(w, h), 'Helvetica');
 
-// Plain word counts, so the debates' most common words ("people") are in every cloud.
+// Plain word counts, so the plays' most common words ("good") are in every cloud.
 const counts = { maxWords: 25, distinctiveness: 0, fadeCommonWords: true };
 
 describe('generateStorm', () => {
@@ -100,15 +100,15 @@ describe('generateStorm', () => {
   });
 
   it('fades words that every cloud shares', () => {
-    const people = coordinated.clouds[0].words.find((w) => w.text === 'people')!;
-    expect(people.cloudCount).toBe(6);
-    expect(people.opacity).toBeLessThan(0.5);
+    const good = coordinated.clouds[0].words.find((w) => w.text === 'good')!;
+    expect(good.cloudCount).toBe(6);
+    expect(good.opacity).toBeLessThan(0.5);
   });
 
   it('places shared words close to each other across clouds', () => {
-    // "people" is in all six clouds; its centers should be much closer than the frame size.
+    // "good" is in all six clouds; its centers should be much closer than the frame size.
     const centers = coordinated.clouds.map((c) => {
-      const w = c.words.find((x) => x.text === 'people')!;
+      const w = c.words.find((x) => x.text === 'good')!;
       return [w.x + w.width / 2, w.y + w.height / 2];
     });
     const spread = Math.max(...centers.map(([x]) => x)) - Math.min(...centers.map(([x]) => x));

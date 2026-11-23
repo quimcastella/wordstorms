@@ -4,8 +4,8 @@ import '@fontsource/inter/600.css';
 import '@fontsource/bricolage-grotesque/700.css';
 import { strToU8, zipSync, type Zippable } from 'fflate';
 import { PALETTES, type PaletteName } from '../core/palettes.ts';
-import type { Cloud, Doc, Storm, StormOptions } from '../core/storm.ts';
-import { cloudToSvg } from '../render/svg.ts';
+import type { Doc, Storm, StormOptions } from '../core/storm.ts';
+import { cloudToSvg, cropStorm } from '../render/svg.ts';
 import { setupComparison } from './compare.ts';
 import { computeStorm, pageFont, type Job } from './compute.ts';
 import { EXAMPLES, exampleById, loadExampleDocs, type Example, type ExampleLook } from './examples.ts';
@@ -598,31 +598,10 @@ function fileNames(s: Storm, ext: string): string[] {
 
 const zipName = (kind: string) => `${createFrom?.id ?? 'wordstorm'}-${kind}.zip`;
 
-/**
- * The clouds cut down to the box around every cloud's words, plus a small margin. All files share this frame,
- * so shared words still line up when you stack them, without the empty space left around the storm.
- */
-function cropped(s: Storm): { clouds: Cloud[]; width: number; height: number } {
-  const words = s.clouds.flatMap((c) => c.words);
-  if (!words.length) return { clouds: s.clouds, width: s.width, height: s.height };
-  const x0 = Math.min(...words.map((w) => w.x));
-  const y0 = Math.min(...words.map((w) => w.y));
-  const x1 = Math.max(...words.map((w) => w.x + w.width));
-  const y1 = Math.max(...words.map((w) => w.y + w.height));
-  const pad = Math.round(0.02 * Math.max(x1 - x0, y1 - y0));
-  const dx = pad - x0;
-  const dy = pad - y0;
-  return {
-    clouds: s.clouds.map((c) => ({ ...c, words: c.words.map((w) => ({ ...w, x: w.x + dx, y: w.y + dy })) })),
-    width: Math.ceil(x1 - x0 + 2 * pad),
-    height: Math.ceil(y1 - y0 + 2 * pad),
-  };
-}
-
 /** Each cloud as a standalone SVG in the shared, cropped frame, with its background and the font embedded. */
 async function cloudSvgs(s: Storm): Promise<string[]> {
   const css = await embeddedFontCss(stormFont);
-  const { clouds, width, height } = cropped(s);
+  const { clouds, width, height } = cropStorm(s);
   return clouds.map((c) => cloudToSvg(c, width, height, { font: stormFont.spec, css, background: s.background }));
 }
 

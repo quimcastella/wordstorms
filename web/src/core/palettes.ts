@@ -5,7 +5,7 @@
 export interface Palette {
   label: string;
   background: string;
-  /** Empty means random HSB colors, as in the original Java version. */
+  /** Empty means random HSB colors, as in the original version. */
   colors: string[];
   /**
    * For marking shared words by warmth: words several documents share take a

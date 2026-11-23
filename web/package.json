@@ -1,5 +1,5 @@
 {
-  "name": "wordstorm",
+  "name": "wordstorms",
   "version": "0.1.0",
   "description": "Word storms: coordinated word clouds for comparing documents",
   "license": "Apache-2.0",
@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "compare": "node scripts/compare-reference.ts",
+    "storm": "node scripts/storm.ts",
     "render-examples": "node scripts/render-examples.ts",
     "build-corpora": "node scripts/build-corpora.ts"
   },

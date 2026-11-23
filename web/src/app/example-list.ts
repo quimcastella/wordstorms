@@ -1,5 +1,5 @@
 // Built-in example corpora: titles, cloud order and look. The texts live in
-// ../examples/data/input/<folder>/ (built by scripts/build-corpora.ts).
+// ../examples/<folder>/ (built by scripts/build-corpora.ts).
 import type { StormOptions } from '../core/storm.ts';
 import type { FontId } from './font-list.ts';
 

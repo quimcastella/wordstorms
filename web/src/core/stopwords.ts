@@ -1,5 +1,5 @@
 // English stop words from cue.language by Jonathan Feinberg (Apache License 2.0),
-// the list the original Java Word Storm used.
+// the list the original Word Storm used.
 const ENGLISH = `i me my myself we us our ours ourselves you your yours yourself yourselves
 he him his himself she her hers herself it its itself they them their theirs themselves
 what which who whom whose this that these those am is are was were be been being have has
@@ -36,7 +36,7 @@ mr mrs ms dr st`;
 export const STOPWORDS = {
   /** The common English words most people expect a word cloud to skip. */
   extended: new Set(EXTENDED.split(/\s+/).filter(Boolean)),
-  /** The original Java version's (cue.language) list. */
+  /** The original version's list, from cue.language. */
   english: new Set(ENGLISH.split(/\s+/)),
   none: new Set<string>(),
 };

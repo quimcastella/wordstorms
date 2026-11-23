@@ -13,7 +13,7 @@ import { FONT_LIST } from '../src/app/font-list.ts';
 import { fontWeight, type FontSpec } from '../src/measure/canvas.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const inputRoot = join(here, '..', '..', 'examples', 'data', 'input');
+const inputRoot = join(here, '..', '..', 'examples');
 const outDir = join(here, '..', 'out', 'examples');
 mkdirSync(outDir, { recursive: true });
 

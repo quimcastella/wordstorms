@@ -34,6 +34,27 @@ const fontAttrs = (font: FontSpec = { family: DEFAULT_FONT }) =>
 
 const style = (css?: string) => (css ? `<style>${css.replace(/<\//g, '<\\/')}</style>` : '');
 
+/**
+ * The clouds cut down to the box around every cloud's words, plus a small margin. All files share this frame,
+ * so shared words still line up when you stack them, without the empty space left around the storm.
+ */
+export function cropStorm(s: Storm): { clouds: Cloud[]; width: number; height: number } {
+  const words = s.clouds.flatMap((c) => c.words);
+  if (!words.length) return { clouds: s.clouds, width: s.width, height: s.height };
+  const x0 = Math.min(...words.map((w) => w.x));
+  const y0 = Math.min(...words.map((w) => w.y));
+  const x1 = Math.max(...words.map((w) => w.x + w.width));
+  const y1 = Math.max(...words.map((w) => w.y + w.height));
+  const pad = Math.round(0.02 * Math.max(x1 - x0, y1 - y0));
+  const dx = pad - x0;
+  const dy = pad - y0;
+  return {
+    clouds: s.clouds.map((c) => ({ ...c, words: c.words.map((w) => ({ ...w, x: w.x + dx, y: w.y + dy })) })),
+    width: Math.ceil(x1 - x0 + 2 * pad),
+    height: Math.ceil(y1 - y0 + 2 * pad),
+  };
+}
+
 /** One cloud as an SVG document. */
 export function cloudToSvg(cloud: Cloud, width: number, height: number, opts: SvgOptions = {}): string {
   const xmlns = opts.standalone === false ? '' : ' xmlns="http://www.w3.org/2000/svg"';

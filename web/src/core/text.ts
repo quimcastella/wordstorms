@@ -94,7 +94,7 @@ export function applyKeyness(docs: Map<string, number>[], strength = 1): Map<str
 
 /**
  * Weights for the kept words: mean weight 0.6, proportional to count
- * (`1.2 · count · n / (2 · Σcount)`), as in the Java version.
+ * (`1.2 · count · n / (2 · Σcount)`), as in the original version.
  */
 export function normalizeWeights(top: [string, number][]): [string, number][] {
   const sum = top.reduce((s, [, n]) => s + n, 0);

@@ -55,7 +55,7 @@ export function boxMask(width: number, height: number, pad = 1): Mask {
   return mask;
 }
 
-/** Grows the ink by one pixel in the 8 directions (the Java version swells shapes by 1 px). */
+/** Grows the ink by one pixel in the 8 directions (the original swells shapes by 1 px). */
 export function dilate(mask: Mask): Mask {
   const out = createMask(mask.width, mask.height, mask.offsetX, mask.offsetY);
   for (let y = 0; y < mask.height; y++) {

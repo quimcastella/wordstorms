@@ -1,179 +1,202 @@
-# Word Storm
+# Word Storms
 
-**Compare documents with coordinated word clouds.** A word storm is a group of
-word clouds, one per document. Words that appear in several documents get the
-same position, color and angle in every cloud, so similar documents look
-similar and what's distinctive stands out.
+**Word clouds that line up, so you can compare documents.** Make one cloud per
+document: words they share keep the same place, color and angle in every
+cloud, so similar documents look similar and what's distinctive stands out.
 
-![Word Storm](examples/images/complex.png)
+**Try it at [wordstorms.org](https://wordstorms.org).** It runs in your
+browser, and your files never leave your computer.
 
-## Use it
+![A word storm of three Shakespeare tragedies and three comedies](docs/images/shakespeare.png)
 
-**In your browser:** go to [wordstorms.org](https://wordstorms.org). The page
-has two paths:
+Word storms come from the paper
+[*Word Storms: Multiples of Word Clouds for Visual Comparison of Documents*](https://arxiv.org/abs/1301.0503)
+by Quim Castella and Charles Sutton (WWW 2014). This repository has the code
+behind the site, a command-line tool, and a TypeScript library.
 
-- **Explore examples:** three built-in corpora, each with its own look, a
-  short note on what the clouds show, and an explanation of every setting.
-  **Tweak these settings** opens the example under Make your own.
-- **Make your own:** drop in some `.txt` files (one per document), change the
-  settings, try new layouts, and download the clouds: a .zip with one SVG or
-  PNG per cloud, or the whole storm as JSON. Everything runs in your browser;
-  your files never leave your computer.
+## On the site
 
-> The app deploys to GitHub Pages from `master` (see
-> [.github/workflows/web.yml](.github/workflows/web.yml)). Until then, run it
-> locally as shown below.
+- **Explore examples:** Shakespeare's tragedies and comedies, the four Sherlock
+  Holmes novels, and six collections of fairy tales and fables. Each has its own
+  look, a short note on what the clouds show, and an explanation of every
+  setting.
+- **Make your own:** drop in some `.txt` files, one per document, change the
+  settings, try new layouts, and download the clouds as SVG or PNG (a .zip with
+  one file per cloud) or the whole layout as JSON.
 
-Below the app, the page explains how it works and shows the fairy tales as a
-word storm next to six separately made clouds, to show why a storm is easier
-to compare.
-
-Things you can change:
-
-Above the clouds:
-
-- **Word storm or separate clouds:** coordinated layout, or ordinary
-  independent clouds for comparison.
-- **New layout** (or press R): another arrangement of the same words.
-
-In the panel:
-
-- **Words per cloud** (10–80, default 35).
-- **Favor distinctive words:** from plain word counts to words each document
-  uses more than the others do (keyness). Unlike tf-idf, words that every
-  document uses can still appear, so the clouds keep shared words to line up.
-- **Ignore these words.**
-- **Set shared words apart by:**
-  - **None** (default): a random palette color per word, as in the original.
-  - **Weight**: words only one document uses are drawn in a light weight,
-    and shared words stay bold. Anton and Abril Fatface have only one weight, so this option
-    changes nothing with that font.
-  - **Warm/cool**: shared words get the palette's warm colors, and words
-    only one document uses get its cool ones.
-- **Size differences:** how much bigger frequent words get. The default is
-  the original's linear scale; toward Dramatic the top words get bigger
-  still, toward Even sizes even out.
-- **Vertical words:** from none to all (default 29%, the original's 2 in 7).
-- **Font:** Oswald (default, a condensed sans that packs tightly), Bricolage
-  Grotesque, Anton, Fraunces, Zilla Slab (a slab, like the original's
-  ChunkFive), Playfair Display, Abril Fatface, Fredoka, or your system font. All are
-  open-source Google Fonts, self-hosted, and embedded in SVG/PNG downloads.
-- **Colors:** Storm, Ocean, Sunset, Crayon, Forest, Midnight (dark), Parchment, Ink, or Classic (the original random colors). Every palette color has at least 3:1
-  contrast against its background.
-- Under More options: cloud shape, fading words every document uses (as in
-  the original), and the layout number (the random seed).
-
-Hover a word to highlight it in every cloud; click to pin it.
+Hover a word to find it in every cloud; click to pin it.
 
 ## Run it locally
 
-Needs [Node.js](https://nodejs.org) 22.18 or newer.
+You need [Node.js](https://nodejs.org) 22.18 or newer.
 
 ```bash
-cd web
+git clone https://github.com/quimcastella/wordstorms.git
+cd wordstorms/web
 npm install
 npm run dev
 ```
 
-Then open http://localhost:5173. The page opens on an example; pick another
-from the list, link to one with `?example=<id>`, or go straight to Make your
-own with `#create`.
-Each example has its own look (font, colors, how shared words stand out,
-cloud shape and layout number). Picking it sets the panel to that look,
-and you can change anything from there:
+Then open http://localhost:5173. Link to an example with `?example=shakespeare`
+(or `holmes`, `fairytales`), or go straight to Make your own with `#create`.
 
-| `?example=` | Corpus |
-|---|---|
-| `shakespeare` | Hamlet, Macbeth, Othello vs. A Midsummer Night's Dream, Twelfth Night, Much Ado About Nothing (dialogue only) |
-| `holmes` | The four Sherlock Holmes novels |
-| `fairytales` | Grimm, Andersen, Perrault, Aesop, Arabian Nights, Japanese fairy tales |
+## Command line
 
-The looks are in [web/src/app/example-list.ts](web/src/app/example-list.ts);
-to try another one, change it there and run `npm run render-examples`.
+`npm run storm` makes a storm from text files and writes one SVG and one PNG
+per cloud, all the same size so shared words line up when you stack them. Run
+it from the `web/` folder:
 
-The literary texts are public domain, from Project Gutenberg;
-`npm run build-corpora` rebuilds them (it downloads from a Gutenberg mirror
-and strips the Gutenberg boilerplate, front matter, and for plays the speaker
-names and stage directions).
+```bash
+# One cloud per file in a folder
+npm run storm -- path/to/folder
 
-| Command | What it does |
-|---|---|
-| `npm run dev` | Dev server with hot reload |
-| `npm test` | Unit and layout tests |
-| `npm run typecheck` | TypeScript checks |
-| `npm run compare` | Lays out the example data and compares it with the original Java output in [reference/](reference/); writes SVGs to `web/out/` |
-| `npm run render-examples` | Renders every example, in its own look, to PNG in `web/out/examples/` |
-| `npm run build-corpora` | Rebuilds the example texts from Project Gutenberg |
-| `npm run build` | Production build in `web/dist/` |
+# Some files, with options
+npm run storm -- a.txt b.txt c.txt --words 40 --distinct 30 --palette ocean --out my-storm
+
+# A built-in example, in its own look
+npm run storm -- --example holmes
+```
+
+| Option | What it does | Default |
+|---|---|---|
+| `-o, --out <dir>` | Where to write the files | `out/storm` |
+| `-f, --format <list>` | `svg`, `png` and/or `json`, comma-separated | `svg,png` |
+| `--separate` | Lay out each cloud on its own instead of as a storm | |
+| `-w, --words <n>` | Words per cloud | 35 |
+| `-d, --distinct <0-100>` | Favor words a document uses more than the others, in % | 20 |
+| `--size <0.5-1.5>` | Size differences: 1 is the original scale, higher is more dramatic | 1 |
+| `--vertical <0-1>` | Share of vertical words | 0.29 |
+| `--mark <how>` | Set shared words apart: `none`, `weight` or `warmth` | `none` |
+| `-p, --palette <name>` | `storm`, `ocean`, `sunset`, `crayon`, `forest`, `midnight`, `parchment`, `ink`, `classic` | `storm` |
+| `--font <id>` | `oswald`, `bricolage`, `anton`, `fraunces`, `zilla`, `playfair`, `abril`, `fredoka`, `system` | `oswald` |
+| `--shape <WxH>` | Cloud size in pixels | `640x480` |
+| `--ignore <words>` | Extra words to leave out, comma-separated | |
+| `-s, --seed <n>` | Layout number; the same number gives the same layout | 123456 |
+| `--example <id>` | Use a built-in example's documents and look; other options override it | |
+
+Folders are read for `.txt` and `.md` files, and each file name becomes its
+cloud's title. SVGs embed their font, so they look the same anywhere.
+
+## The settings
+
+The site and the command line share these:
+
+- **Words per cloud:** how many of each document's top words to draw. Common
+  English words ("the", "and", "said") are always left out.
+- **Favor distinctive words:** at 0, words are sized by how often they appear.
+  Turning it up boosts words a document uses more than the others do, which
+  brings out names and topics. Unlike tf-idf, words every document uses can
+  still appear, so the clouds keep shared words to line up.
+- **Set shared words apart:** by weight (words only one document uses are drawn
+  thin) or by warm and cool colors (warm for shared words). Off by default.
+- **Size differences, vertical words, colors, font, cloud shape** and the
+  **layout number** change the look.
+- **Word storm or separate clouds:** separate clouds are laid out one by one,
+  like an ordinary word cloud, for comparison.
 
 ## Use it as a library
 
-The layout code has no DOM dependency; give it a way to measure text.
+The layout code has no DOM dependency. Give it a way to measure text: a canvas
+in the browser, or [`@napi-rs/canvas`](https://www.npmjs.com/package/@napi-rs/canvas)
+in Node.
 
 ```ts
-import { generateStorm, createCanvasMeasurer, stormToSvg } from './web/src/index.ts';
+import { generateStorm, createCanvasMeasurer, cloudToSvg } from './web/src/index.ts';
 
 const measurer = createCanvasMeasurer((w, h) => new OffscreenCanvas(w, h));
 const storm = generateStorm(
   [
-    { name: 'Obama', text: '…' },
-    { name: 'Romney', text: '…' },
+    { name: 'Hamlet', text: '…' },
+    { name: 'Macbeth', text: '…' },
   ],
-  { mode: 'coordinated', maxWords: 25 },
+  { maxWords: 40, distinctiveness: 0.3 },
   measurer,
 );
-const svg = stormToSvg(storm);
+const svgs = storm.clouds.map((cloud) => cloudToSvg(cloud, storm.width, storm.height));
 ```
 
-`JAVA_OPTIONS` reproduces the original version's word choice and look
-(`generateStorm(docs, { ...JAVA_OPTIONS }, measurer)`).
-
-In Node, pass a canvas from [`@napi-rs/canvas`](https://www.npmjs.com/package/@napi-rs/canvas) instead
-(see [web/scripts/compare-reference.ts](web/scripts/compare-reference.ts)).
+`PAPER_OPTIONS` gives the settings used in the paper
+(`generateStorm(docs, { ...PAPER_OPTIONS }, measurer)`).
+[web/scripts/storm.ts](web/scripts/storm.ts) is a complete Node example.
 
 ## How it works
 
-1. **Pick words.** Each document's most frequent words, minus common English
-   words like "the" and "and", boosted by how much more this document uses
-   them than the others.
-2. **Place shared words together.** A word that appears in several documents is
-   placed at the average of its positions, cloud by cloud, until positions
-   settle.
-3. **Refine.** A force layout pulls each shared word toward its position in
-   similar documents, pushes overlapping words apart and keeps clouds compact.
-4. **Fill in.** Words unique to one document fill the space around them.
+1. **Pick the words.** Each document's most frequent words, minus common ones,
+   optionally boosted by how much more this document uses them than the others.
+2. **Line up shared words.** A word that appears in several documents moves to
+   the average of its positions, cloud by cloud, until positions settle.
+3. **Tidy up.** A force layout pulls each word toward its position in similar
+   documents, pushes overlapping words apart and keeps clouds compact.
+4. **Fill in.** Words only one document uses go in last, around the shared ones.
 
-[ALGORITHM.md](ALGORITHM.md) has the full spec, including where the port
-deliberately differs from the original.
+[ALGORITHM.md](ALGORITHM.md) has the full algorithm, including where this
+implementation differs from the one used for the paper.
 
-The method is from Quim Castella and Charles Sutton, *Word Storms: Multiples of
-Word Clouds for Visual Comparison of Documents*, WWW 2014.
+## Tweak it
+
+| To change | Look in |
+|---|---|
+| An example's look (font, colors, settings, layout number, hidden ignore list) and its note | [web/src/app/example-list.ts](web/src/app/example-list.ts) |
+| Colors | [web/src/core/palettes.ts](web/src/core/palettes.ts) (a test checks every color has 3:1 contrast with its background) |
+| Fonts | [web/src/app/font-list.ts](web/src/app/font-list.ts) and [web/src/app/fonts.ts](web/src/app/fonts.ts) ([Fontsource](https://fontsource.org) packages) |
+| Word choice and layout | [web/src/core/](web/src/core/) |
+| The page | [web/index.html](web/index.html), [web/src/app/](web/src/app/) |
+
+After changing an example, `npm run render-examples` renders all three to PNG
+in `web/out/examples/`. The example texts are public domain, from Project
+Gutenberg; `npm run build-corpora` downloads and cleans them again (it strips
+the Gutenberg boilerplate and, for plays, speaker names and stage directions).
+
+All commands run from `web/`:
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server with hot reload |
+| `npm run storm -- …` | Makes a storm from text files (see [Command line](#command-line)) |
+| `npm test` | Unit and layout tests |
+| `npm run typecheck` | TypeScript checks |
+| `npm run render-examples` | Renders the examples to PNG in `web/out/examples/` |
+| `npm run build-corpora` | Rebuilds the example texts from Project Gutenberg |
+| `npm run build` | Production build in `web/dist/` |
 
 ## Repository layout
 
 | Path | What |
 |---|---|
-| [web/](web/) | The TypeScript implementation and web app |
-| [web/src/core/](web/src/core/) | Text processing, collision detection, layout (no DOM) |
-| [ALGORITHM.md](ALGORITHM.md) | The algorithm, as implemented |
-| [examples/](examples/) | Example documents and images |
-| [src/](src/), [library/](library/) | The original Java implementation (built on WordCram and Processing 1.2) |
-| [reference/](reference/) | Runs the Java version and saves its layouts as JSON, to check the port against |
+| [web/src/core/](web/src/core/) | Text processing, collision detection and layout (no DOM) |
+| [web/src/render/](web/src/render/) | SVG output |
+| [web/src/app/](web/src/app/) | The site |
+| [web/scripts/](web/scripts/) | Command line, example rendering, corpus building |
+| [web/test/](web/test/) | Tests |
+| [examples/](examples/) | The example texts |
+| [ALGORITHM.md](ALGORITHM.md) | The algorithm, step by step |
+| [archive/](archive/) | Keepsakes from the original 2012 Java version; the full code is at the `java-original` tag |
 
-### The original Java version
+## Deploying
 
-The Java code still works for reproducing the paper's results, but it is no
-longer the recommended way to make word storms. Processing 1.2 depends on
-`java.applet`, which was removed in JDK 26, so
-[reference/run.sh](reference/run.sh) patches in an empty stand-in for those
-classes:
+[.github/workflows/web.yml](.github/workflows/web.yml) tests every push and
+pull request, and publishes the site to GitHub Pages from `master`. To serve it
+at wordstorms.org: in the repository's Settings → Pages, set the source to
+"GitHub Actions" and the custom domain to `wordstorms.org`, then point the
+domain's DNS at GitHub Pages as GitHub describes there. The build uses relative
+paths, so it also works from a sub-path.
 
-```bash
-JAVA_HOME=/path/to/jdk ./reference/run.sh
+## Citing
+
+If you use word storms in your work, please cite the paper:
+
+```bibtex
+@inproceedings{castella2014wordstorms,
+  title     = {Word Storms: Multiples of Word Clouds for Visual Comparison of Documents},
+  author    = {Castella, Quim and Sutton, Charles},
+  booktitle = {Proceedings of the 23rd International Conference on World Wide Web (WWW)},
+  year      = {2014},
+  note      = {arXiv:1301.0503}
+}
 ```
 
 ## License
 
-Apache 2.0. See [LICENSE.txt](LICENSE.txt). Built originally on
-[WordCram](https://github.com/danbernier/WordCram); English stop words from
-cue.language by Jonathan Feinberg (Apache 2.0).
+Apache 2.0. See [LICENSE.txt](LICENSE.txt). The fonts are open-source Google
+Fonts, served with Fontsource. English stop words come from cue.language by
+Jonathan Feinberg (Apache 2.0). The example texts are in the public domain.

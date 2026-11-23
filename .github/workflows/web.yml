@@ -26,7 +26,6 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npm run compare
       - run: npx vite build
       - uses: actions/upload-pages-artifact@v4
         with:

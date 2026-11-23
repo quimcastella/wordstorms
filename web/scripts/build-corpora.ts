@@ -1,4 +1,4 @@
-// Builds the example corpora in ../examples/data/input/ from public-domain
+// Builds the example corpora in ../examples/ from public-domain
 // Project Gutenberg texts.
 //
 //   node scripts/build-corpora.ts [cache-dir]
@@ -66,7 +66,7 @@ const CORPORA: Corpus[] = [
 ];
 
 const here = dirname(fileURLToPath(import.meta.url));
-const outRoot = join(here, '..', '..', 'examples', 'data', 'input');
+const outRoot = join(here, '..', '..', 'examples');
 const cache = process.argv[2] ?? join(here, '..', '.cache', 'gutenberg');
 const MIRROR = 'https://gutenberg.pglaf.org';
 
