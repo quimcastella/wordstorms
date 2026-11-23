@@ -6,7 +6,7 @@ import { PALETTES, type PaletteName } from '../core/palettes.ts';
 import { generateStorm, type Doc, type Storm, type StormOptions } from '../core/storm.ts';
 import { createCanvasMeasurer } from '../measure/canvas.ts';
 import { cloudToSvg, stormToSvg } from '../render/svg.ts';
-import { EXAMPLES, exampleById, loadExampleDocs, type Example } from './examples.ts';
+import { EXAMPLES, exampleById, loadExampleDocs, type Example, type ExampleLook } from './examples.ts';
 import { absoluteFaces, embeddedFontCss, fontById, FONTS, loadFont, type CloudFont } from './fonts.ts';
 import type { StormRequest, StormResponse } from './worker.ts';
 import './style.css';
@@ -40,6 +40,7 @@ const ui = {
   toolbar: $('toolbar'),
   title: $('title'),
   blurb: $('blurb'),
+  findings: $('findings'),
   status: $('status'),
   actions: $('actions'),
   focus: $('focus'),
@@ -145,6 +146,7 @@ async function addFiles(list: FileList | File[]) {
 
 async function loadExample(ex: Example) {
   setExample(ex);
+  applyLook(ex.look);
   storm = null;
   renderSkeleton(ex.docs.length);
   setStatus('Loading example…', 'busy');
@@ -156,6 +158,25 @@ async function loadExample(ex: Example) {
   } catch (err) {
     setStatus(`Couldn’t load the example: ${err instanceof Error ? err.message : String(err)}`, 'error');
   }
+}
+
+/** Sets the panel's controls to an example's look; everything stays editable. */
+function applyLook({ font, options: o }: ExampleLook) {
+  const check = (name: string, value: string) => {
+    const input = document.querySelector<HTMLInputElement>(`input[name=${name}][value="${value}"]`);
+    if (input) input.checked = true;
+  };
+  check('font', font);
+  check('palette', o.palette);
+  check('markShared', o.markShared);
+  ui.words.value = String(o.maxWords);
+  ui.distinct.value = String(Math.round(o.distinctiveness * 100));
+  ui.contrast.value = String(Math.round(o.sizeExponent * 100));
+  ui.vertical.value = String(Math.round(o.verticalShare * VERTICAL_STEPS));
+  ui.aspect.value = `${o.width}x${o.height}`;
+  ui.seed.value = String(o.seed);
+  ui.stop.value = '';
+  syncControls();
 }
 
 function setExample(ex: Example | null) {
@@ -207,6 +228,7 @@ function docsChanged() {
   ui.clear.hidden = docs.length < 2;
   ui.title.textContent = docs.length === 0 ? 'Compare documents at a glance' : example ? example.title : 'Your documents';
   ui.blurb.textContent = docs.length && example ? example.blurb : '';
+  ui.findings.textContent = docs.length && example?.findings ? example.findings : '';
   run();
 }
 
@@ -224,7 +246,8 @@ function readOptions(): Partial<StormOptions> {
     markShared: selected('markShared') as StormOptions['markShared'],
     fadeCommonWords: ui.fade.checked,
     palette: selected('palette') as PaletteName,
-    extraStopwords: ui.stop.value.split(/[\s,;]+/).filter(Boolean),
+    // An example's own ignore list applies too, without filling the field.
+    extraStopwords: [...ui.stop.value.split(/[\s,;]+/).filter(Boolean), ...(example?.look.ignore ?? [])],
     width,
     height,
     seed: Number(ui.seed.value) || 0,
@@ -341,12 +364,18 @@ function setStatus(text: string, kind: 'info' | 'busy' | 'error' = 'info') {
 
 // ---------- Rendering ----------
 
+/** Most clouds per row: four make a 2×2 square, otherwise up to three. The CSS drops columns on narrow screens. */
+function setColumns(n: number) {
+  ui.grid.style.setProperty('--cols', String(n === 4 ? 2 : Math.max(1, Math.min(n, 3))));
+}
+
 function renderSkeleton(n: number) {
   ui.empty.hidden = true;
   ui.toolbar.hidden = false;
   ui.actions.hidden = true;
   const [w, h] = ui.aspect.value.split('x');
   ui.grid.style.setProperty('--aspect', `${w} / ${h}`);
+  setColumns(n);
   ui.grid.innerHTML = Array.from(
     { length: n },
     () => '<figure class="cloud skeleton"><div class="art"></div><figcaption><span></span></figcaption></figure>',
@@ -364,6 +393,7 @@ function render() {
   const s = storm;
   ui.grid.style.setProperty('--aspect', `${s.width} / ${s.height}`);
   ui.grid.style.setProperty('--cloud-bg', s.background);
+  setColumns(s.clouds.length);
   ui.grid.innerHTML = s.clouds
     .map((cloud) => {
       const shared = cloud.words.filter((w) => w.cloudCount > 1).length;

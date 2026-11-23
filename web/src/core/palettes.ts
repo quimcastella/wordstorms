@@ -39,6 +39,13 @@ export const PALETTES = {
     warm: ['#c9184a', '#e0294f', '#c2410c', '#b91c1c', '#9d0208', '#a4133c'],
     cool: ['#7b2cbf', '#5a189a', '#3c096c', '#4c3a8c'],
   },
+  crayon: {
+    label: 'Crayon',
+    background: '#fffcf2',
+    colors: ['#e63946', '#1c7ed6', '#e8590c', '#7048e8', '#2f9e44', '#ff006e', '#1098ad', '#c2255c', '#099268'],
+    warm: ['#e63946', '#e8590c', '#ff006e', '#d9480f', '#c2255c'],
+    cool: ['#1c7ed6', '#099268', '#7048e8', '#1098ad', '#2f9e44'],
+  },
   forest: {
     label: 'Forest',
     background: '#fbfaf5',
@@ -52,6 +59,14 @@ export const PALETTES = {
     colors: ['#f8fafc', '#7dd3fc', '#fda4af', '#fde68a', '#86efac', '#c4b5fd', '#fdba74'],
     warm: ['#fda4af', '#fde68a', '#fdba74', '#f9a8d4'],
     cool: ['#7dd3fc', '#86efac', '#c4b5fd', '#f8fafc'],
+  },
+  parchment: {
+    label: 'Parchment',
+    background: '#efe4ca',
+    colors: ['#9b1d20', '#a4461a', '#7d5200', '#6b3e26', '#1f3a5f', '#2f5d4a', '#3e4c59', '#4a3f5c'],
+    // Aged paper: oxblood, rust, ochre and sepia inks for shared words; navy, bottle green and slate for the rest.
+    warm: ['#9b1d20', '#a4461a', '#7d5200', '#6b3e26'],
+    cool: ['#1f3a5f', '#2f5d4a', '#3e4c59', '#4a3f5c'],
   },
   ink: {
     label: 'Ink',

@@ -35,7 +35,7 @@ In the panel:
 - **Set shared words apart by:**
   - **None** (default): a random palette color per word, as in the original.
   - **Weight**: words only one document uses are drawn in a light weight,
-    and shared words stay bold. Anton has only one weight, so this option
+    and shared words stay bold. Anton and Abril Fatface have only one weight, so this option
     changes nothing with that font.
   - **Warm/cool**: shared words get the palette's warm colors, and words
     only one document uses get its cool ones.
@@ -45,10 +45,9 @@ In the panel:
 - **Vertical words:** from none to all (default 29%, the original's 2 in 7).
 - **Font:** Oswald (default, a condensed sans that packs tightly), Bricolage
   Grotesque, Anton, Fraunces, Zilla Slab (a slab, like the original's
-  ChunkFive), or your system font. All are open-source Google Fonts,
-  self-hosted, and embedded in SVG/PNG downloads.
-- **Colors:** Storm, Ocean, Sunset, Forest, Midnight (dark), Ink, or Classic
-  (the original random colors). Every palette color has at least 3:1
+  ChunkFive), Playfair Display, Abril Fatface, Fredoka, or your system font. All are
+  open-source Google Fonts, self-hosted, and embedded in SVG/PNG downloads.
+- **Colors:** Storm, Ocean, Sunset, Crayon, Forest, Midnight (dark), Parchment, Ink, or Classic (the original random colors). Every palette color has at least 3:1
   contrast against its background.
 - Under More options: cloud shape, fading words every document uses (as in
   the original), and the layout number (the random seed).
@@ -66,13 +65,19 @@ npm run dev
 ```
 
 Then open http://localhost:5173. The page opens on an example; pick another
-with the chips under the drop zone, or link to one with `?example=<id>`:
+with the chips under the drop zone, or link to one with `?example=<id>`.
+Each example has its own look (font, colors, how shared words stand out,
+cloud shape and layout number). Picking it sets the panel to that look,
+and you can change anything from there:
 
 | `?example=` | Corpus |
 |---|---|
 | `shakespeare` | Hamlet, Macbeth, Othello vs. A Midsummer Night's Dream, Twelfth Night, Much Ado About Nothing (dialogue only) |
 | `holmes` | The four Sherlock Holmes novels |
 | `fairytales` | Grimm, Andersen, Perrault, Aesop, Arabian Nights, Japanese fairy tales |
+
+The looks are in [web/src/app/example-list.ts](web/src/app/example-list.ts);
+to try another one, change it there and run `npm run render-examples`.
 
 The literary texts are public domain, from Project Gutenberg;
 `npm run build-corpora` rebuilds them (it downloads from a Gutenberg mirror
@@ -85,7 +90,7 @@ names and stage directions).
 | `npm test` | Unit and layout tests |
 | `npm run typecheck` | TypeScript checks |
 | `npm run compare` | Lays out the example data and compares it with the original Java output in [reference/](reference/); writes SVGs to `web/out/` |
-| `npm run render-examples` | Renders every example to PNG in `web/out/examples/` |
+| `npm run render-examples` | Renders every example, in its own look, to PNG in `web/out/examples/` |
 | `npm run build-corpora` | Rebuilds the example texts from Project Gutenberg |
 | `npm run build` | Production build in `web/dist/` |
 

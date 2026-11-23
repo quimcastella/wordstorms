@@ -834,9 +834,15 @@ legend {
 }
 
 .grid {
+  /* At most --cols clouds per row (set by the app), fewer when a cloud would get narrower than 260px. */
+  --cols: 3;
+  --gap: 1.1rem;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
-  gap: 1.1rem;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(max(min(100%, 260px), calc((100% - (var(--cols) - 1) * var(--gap)) / var(--cols))), 1fr)
+  );
+  gap: var(--gap);
 }
 
 .grid[aria-busy='true'] .cloud:not(.skeleton) {
@@ -1115,5 +1121,17 @@ legend {
 }
 
 .blurb:empty {
+  display: none;
+}
+
+.findings {
+  margin: 0.6rem 0 0;
+  max-width: 72ch;
+  padding-left: 0.8rem;
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+}
+
+.findings:empty {
   display: none;
 }

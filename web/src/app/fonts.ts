@@ -19,7 +19,18 @@ import oswaldLightLatin from '@fontsource/oswald/files/oswald-latin-300-normal.w
 import oswaldLightLatinExt from '@fontsource/oswald/files/oswald-latin-ext-300-normal.woff2?url';
 import zillaLightLatin from '@fontsource/zilla-slab/files/zilla-slab-latin-300-normal.woff2?url';
 import zillaLightLatinExt from '@fontsource/zilla-slab/files/zilla-slab-latin-ext-300-normal.woff2?url';
-import { DEFAULT_FONT, fontWeight, type FontSpec } from '../measure/canvas.ts';
+import fredokaLatin from '@fontsource/fredoka/files/fredoka-latin-600-normal.woff2?url';
+import fredokaLatinExt from '@fontsource/fredoka/files/fredoka-latin-ext-600-normal.woff2?url';
+import fredokaLightLatin from '@fontsource/fredoka/files/fredoka-latin-300-normal.woff2?url';
+import fredokaLightLatinExt from '@fontsource/fredoka/files/fredoka-latin-ext-300-normal.woff2?url';
+import playfairLatin from '@fontsource/playfair-display/files/playfair-display-latin-700-normal.woff2?url';
+import playfairLatinExt from '@fontsource/playfair-display/files/playfair-display-latin-ext-700-normal.woff2?url';
+import playfairLightLatin from '@fontsource/playfair-display/files/playfair-display-latin-400-normal.woff2?url';
+import abrilLatin from '@fontsource/abril-fatface/files/abril-fatface-latin-400-normal.woff2?url';
+import abrilLatinExt from '@fontsource/abril-fatface/files/abril-fatface-latin-ext-400-normal.woff2?url';
+import playfairLightLatinExt from '@fontsource/playfair-display/files/playfair-display-latin-ext-400-normal.woff2?url';
+import { fontWeight, type FontSpec } from '../measure/canvas.ts';
+import { FONT_LIST, type FontId, type FontInfo } from './font-list.ts';
 
 // Unicode ranges from Fontsource's CSS for the latin and latin-ext subsets.
 const LATIN =
@@ -42,74 +53,32 @@ export interface FontFaces {
   lightFiles: FontFile[];
 }
 
-export interface CloudFont extends FontFaces {
-  id: string;
-  label: string;
-  note: string;
-}
+export interface CloudFont extends FontFaces, FontInfo {}
 
 const files = (latin: string, latinExt: string): FontFile[] => [
   { url: latin, unicodeRange: LATIN },
   { url: latinExt, unicodeRange: LATIN_EXT },
 ];
 
-export const FONTS: CloudFont[] = [
-  {
-    id: 'oswald',
-    label: 'Oswald',
-    note: 'Condensed, packs tight',
-    face: 'Oswald',
-    spec: { family: '"Oswald", "Arial Narrow", sans-serif', weight: 600, lightWeight: 300 },
-    files: files(oswaldLatin, oswaldLatinExt),
-    lightFiles: files(oswaldLightLatin, oswaldLightLatinExt),
-  },
-  {
-    id: 'bricolage',
-    label: 'Bricolage',
-    note: 'Modern grotesque',
-    face: 'Bricolage Grotesque',
-    spec: { family: '"Bricolage Grotesque", system-ui, sans-serif', weight: 700, lightWeight: 300 },
+const FILES: Record<FontId, { files: FontFile[]; lightFiles: FontFile[] }> = {
+  oswald: { files: files(oswaldLatin, oswaldLatinExt), lightFiles: files(oswaldLightLatin, oswaldLightLatinExt) },
+  bricolage: {
     files: files(bricolageLatin, bricolageLatinExt),
     lightFiles: files(bricolageLightLatin, bricolageLightLatinExt),
   },
-  {
-    id: 'anton',
-    label: 'Anton',
-    note: 'Poster heavy',
-    face: 'Anton',
-    spec: { family: '"Anton", Impact, sans-serif', weight: 400 },
-    files: files(antonLatin, antonLatinExt),
-    lightFiles: [],
+  anton: { files: files(antonLatin, antonLatinExt), lightFiles: [] },
+  fraunces: { files: files(frauncesLatin, frauncesLatinExt), lightFiles: files(frauncesLightLatin, frauncesLightLatinExt) },
+  zilla: { files: files(zillaLatin, zillaLatinExt), lightFiles: files(zillaLightLatin, zillaLightLatinExt) },
+  playfair: {
+    files: files(playfairLatin, playfairLatinExt),
+    lightFiles: files(playfairLightLatin, playfairLightLatinExt),
   },
-  {
-    id: 'fraunces',
-    label: 'Fraunces',
-    note: 'Soft serif',
-    face: 'Fraunces',
-    spec: { family: '"Fraunces", Georgia, serif', weight: 600, lightWeight: 300 },
-    files: files(frauncesLatin, frauncesLatinExt),
-    lightFiles: files(frauncesLightLatin, frauncesLightLatinExt),
-  },
-  {
-    id: 'zilla',
-    label: 'Zilla Slab',
-    note: 'Slab, like the original',
-    face: 'Zilla Slab',
-    spec: { family: '"Zilla Slab", Rockwell, serif', weight: 600, lightWeight: 300 },
-    files: files(zillaLatin, zillaLatinExt),
-    lightFiles: files(zillaLightLatin, zillaLightLatinExt),
-  },
-  {
-    id: 'system',
-    label: 'System',
-    note: 'Your device’s sans',
-    face: '',
-    // Light if the device's font has a light weight (Helvetica Neue does).
-    spec: { family: DEFAULT_FONT, weight: 400, lightWeight: 300 },
-    files: [],
-    lightFiles: [],
-  },
-];
+  abril: { files: files(abrilLatin, abrilLatinExt), lightFiles: [] },
+  fredoka: { files: files(fredokaLatin, fredokaLatinExt), lightFiles: files(fredokaLightLatin, fredokaLightLatinExt) },
+  system: { files: [], lightFiles: [] },
+};
+
+export const FONTS: CloudFont[] = FONT_LIST.map((f) => ({ ...f, ...FILES[f.id] }));
 
 export const fontById = (id: string) => FONTS.find((f) => f.id === id) ?? FONTS[0];
 

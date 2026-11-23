@@ -1,8 +1,8 @@
 // Loads the built-in example corpora; each text is only downloaded when picked.
 import type { Doc } from '../core/storm.ts';
-import { EXAMPLES, type Example } from './example-list.ts';
+import { EXAMPLES, type Example, type ExampleLook } from './example-list.ts';
 
-export { EXAMPLES, type Example };
+export { EXAMPLES, type Example, type ExampleLook };
 
 const files = import.meta.glob<string>('../../../examples/data/input/*/*.txt', { query: '?raw', import: 'default' });
 
