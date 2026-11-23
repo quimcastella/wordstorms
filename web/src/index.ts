@@ -1,5 +1,5 @@
 // Public API of the Word Storms library.
-export { generateStorm, DEFAULT_OPTIONS, PAPER_OPTIONS } from './core/storm.ts';
+export { generateStorm, resolveOptions, DEFAULT_OPTIONS, PAPER_OPTIONS, MAX_SIZE } from './core/storm.ts';
 export type { Doc, Storm, Cloud, PlacedWord, StormOptions, StormStats, Mode, Progress } from './core/storm.ts';
 export { PALETTES } from './core/palettes.ts';
 export type { Palette, PaletteName } from './core/palettes.ts';
