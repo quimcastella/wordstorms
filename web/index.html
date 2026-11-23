@@ -3,8 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Word Storm</title>
-    <meta name="description" content="Compare documents with coordinated word clouds. Drop in text files and get one cloud per document, with shared words in the same place." />
+    <title>Word Storms</title>
+    <meta name="description" content="Make a word cloud for each of your documents, with shared words in the same place, so you can compare them. Runs in your browser." />
+    <link rel="canonical" href="https://wordstorms.org/" />
+    <meta property="og:title" content="Word Storms" />
+    <meta property="og:description" content="Make a word cloud for each of your documents, with shared words in the same place, so you can compare them." />
+    <meta property="og:url" content="https://wordstorms.org/" />
+    <meta property="og:type" content="website" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='17' height='17' rx='5' fill='%232a6f97'/%3E%3Crect x='13' y='9' width='17' height='17' rx='5' fill='%23d62839' fill-opacity='.85'/%3E%3Crect x='6' y='16' width='13' height='13' rx='4' fill='%23e07a1f' fill-opacity='.9'/%3E%3C/svg%3E" />
   </head>
   <body>
@@ -15,10 +20,13 @@
           <rect x="13" y="9" width="17" height="17" rx="5" fill="#d62839" fill-opacity=".85" />
           <rect x="6" y="16" width="13" height="13" rx="4" fill="#e07a1f" fill-opacity=".9" />
         </svg>
-        <span>Word Storm</span>
+        <span>Word Storms</span>
       </a>
       <nav>
-        <a href="#about">How it works</a>
+        <a href="#examples" class="navlink">Examples</a>
+        <a href="#create" class="navlink">Make your own</a>
+        <a href="#how" class="navlink">How it works</a>
+        <a href="https://arxiv.org/abs/1301.0503" rel="noopener" class="navlink">Paper</a>
         <a href="https://github.com/quimcastella/wordstorms" rel="noopener" class="gh">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
           <span>GitHub</span>
@@ -26,106 +34,130 @@
       </nav>
     </header>
 
+    <section class="intro">
+      <h1>Word Storms</h1>
+      <p class="lede">
+        Word clouds that line up, so you can compare documents. Make one cloud per document: words they share keep the
+        same place, color and angle in every cloud, so similar documents look similar and what's distinctive stands out.
+      </p>
+      <div class="viewtabs" role="tablist" aria-label="What to do">
+        <button type="button" role="tab" id="tabExamples" aria-controls="examplesPane" aria-selected="true">Explore examples</button>
+        <button type="button" role="tab" id="tabCreate" aria-controls="createPane" aria-selected="false">Make your own</button>
+      </div>
+    </section>
+
     <main class="layout">
       <aside class="panel" aria-label="Settings">
-        <section>
-          <h2><span class="step">1</span>Documents</h2>
-          <label class="drop" id="drop">
-            <input type="file" id="files" multiple accept=".txt,.md,text/plain" />
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <strong>Drop text files</strong>
-            <span>or click to browse · one cloud per file</span>
-          </label>
-          <div class="examples">
-            <p class="examples-label">Or explore an example, each with its own look</p>
-            <div class="chips" id="examples"></div>
-          </div>
-          <ul id="doclist" class="doclist"></ul>
-          <div class="docfoot">
-            <button type="button" id="clear" class="linkish muted" hidden>Clear all</button>
-          </div>
-        </section>
+        <div id="examplesPane" class="pane" role="tabpanel" aria-labelledby="tabExamples">
+          <section>
+            <h2>Examples</h2>
+            <div class="example-list" id="examples"></div>
+          </section>
+          <section>
+            <h2>How this one is set up</h2>
+            <dl class="explain" id="explain"></dl>
+            <button type="button" id="tweak" class="primary">Tweak these settings</button>
+            <p class="hint">Opens the example in Make your own, where you can change the settings, download the clouds or use your own files instead.</p>
+          </section>
+        </div>
 
-        <section>
-          <h2><span class="step">2</span>Words</h2>
-          <label class="field">
-            <span>Words per cloud <output id="wordsOut">35</output></span>
-            <input type="range" id="words" min="10" max="80" step="5" value="35" />
-          </label>
-          <label class="field">
-            <span>Favor distinctive words <output id="distinctOut"></output></span>
-            <input type="range" id="distinct" min="0" max="100" step="10" value="20" />
-            <span class="scale" aria-hidden="true"><span>Most frequent</span><span>Most distinctive</span></span>
-          </label>
-          <label class="field">
-            <span>Ignore these words</span>
-            <input type="text" id="stop" placeholder="e.g. applause, laughter" autocomplete="off" />
-          </label>
-        </section>
-
-        <section>
-          <h2><span class="step">3</span>Look</h2>
-          <fieldset class="palettes" id="palettes">
-            <legend>Colors</legend>
-          </fieldset>
-          <fieldset class="fonts" id="fonts">
-            <legend>Font</legend>
-          </fieldset>
-          <div class="field">
-            <span>Set shared words apart by</span>
-            <div class="segmented" role="radiogroup" aria-label="Set shared words apart by">
-              <input type="radio" name="markShared" id="mark-n" value="none" checked />
-              <label for="mark-n">None</label>
-              <input type="radio" name="markShared" id="mark-w" value="weight" />
-              <label for="mark-w">Weight</label>
-              <input type="radio" name="markShared" id="mark-c" value="warmth" />
-              <label for="mark-c">Warm/cool</label>
+        <div id="createPane" class="pane" role="tabpanel" aria-labelledby="tabCreate" hidden>
+          <section>
+            <h2><span class="step">1</span>Documents</h2>
+            <label class="drop" id="drop">
+              <input type="file" id="files" multiple accept=".txt,.md,text/plain" />
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <strong>Drop text files</strong>
+              <span>or click to browse · one cloud per file</span>
+            </label>
+            <p class="privacy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Everything runs in your browser. Your files never leave your computer.</span></p>
+            <ul id="doclist" class="doclist"></ul>
+            <div class="docfoot">
+              <button type="button" id="clear" class="linkish muted" hidden>Clear all</button>
             </div>
-            <p class="hint" id="markhint"></p>
-          </div>
-          <label class="field">
-            <span>Size differences <output id="contrastOut"></output></span>
-            <input type="range" id="contrast" min="50" max="150" step="10" value="100" />
-            <span class="scale" aria-hidden="true"><span>Even</span><span>Dramatic</span></span>
-          </label>
-          <label class="field">
-            <span>Vertical words <output id="verticalOut"></output></span>
-            <!-- In fourteenths, so the original's 2 in 7 is a stop. -->
-            <input type="range" id="vertical" min="0" max="14" step="1" value="4" />
-            <span class="scale" aria-hidden="true"><span>None</span><span>All</span></span>
-          </label>
+          </section>
 
-          <details class="more">
-            <summary>More options</summary>
-            <div class="more-body">
-              <label class="field">
-                <span>Cloud shape</span>
-                <select id="aspect">
-                  <option value="640x480">Landscape 4:3</option>
-                  <option value="560x560">Square</option>
-                  <option value="720x405">Wide 16:9</option>
-                  <option value="480x600">Portrait 4:5</option>
-                </select>
-              </label>
-              <label class="switch" id="fadeRow">
-                <input type="checkbox" id="fade" role="switch" />
-                <span class="track" aria-hidden="true"></span>
-                <span>Fade words every document uses</span>
-              </label>
-              <label class="field">
-                <span>Layout number</span>
-                <input type="number" id="seed" value="123456" />
-                <span class="hint">The same number gives the same layout. New layout picks another.</span>
-              </label>
+          <section>
+            <h2><span class="step">2</span>Words</h2>
+            <label class="field">
+              <span>Words per cloud <output id="wordsOut">35</output></span>
+              <input type="range" id="words" min="10" max="80" step="5" value="35" />
+            </label>
+            <label class="field">
+              <span>Favor distinctive words <output id="distinctOut"></output></span>
+              <input type="range" id="distinct" min="0" max="100" step="10" value="20" />
+              <span class="scale" aria-hidden="true"><span>Most frequent</span><span>Most distinctive</span></span>
+            </label>
+            <label class="field">
+              <span>Ignore these words</span>
+              <input type="text" id="stop" placeholder="e.g. applause, laughter" autocomplete="off" />
+            </label>
+          </section>
+
+          <section>
+            <h2><span class="step">3</span>Look</h2>
+            <fieldset class="palettes" id="palettes">
+              <legend>Colors</legend>
+            </fieldset>
+            <fieldset class="fonts" id="fonts">
+              <legend>Font</legend>
+            </fieldset>
+            <div class="field">
+              <span>Set shared words apart by</span>
+              <div class="segmented" role="radiogroup" aria-label="Set shared words apart by">
+                <input type="radio" name="markShared" id="mark-n" value="none" checked />
+                <label for="mark-n">None</label>
+                <input type="radio" name="markShared" id="mark-w" value="weight" />
+                <label for="mark-w">Weight</label>
+                <input type="radio" name="markShared" id="mark-c" value="warmth" />
+                <label for="mark-c">Warm/cool</label>
+              </div>
+              <p class="hint" id="markhint"></p>
             </div>
-          </details>
-        </section>
+            <label class="field">
+              <span>Size differences <output id="contrastOut"></output></span>
+              <input type="range" id="contrast" min="50" max="150" step="10" value="100" />
+              <span class="scale" aria-hidden="true"><span>Even</span><span>Dramatic</span></span>
+            </label>
+            <label class="field">
+              <span>Vertical words <output id="verticalOut"></output></span>
+              <!-- In fourteenths, so the original's 2 in 7 is a stop. -->
+              <input type="range" id="vertical" min="0" max="14" step="1" value="4" />
+              <span class="scale" aria-hidden="true"><span>None</span><span>All</span></span>
+            </label>
+
+            <details class="more">
+              <summary>More options</summary>
+              <div class="more-body">
+                <label class="field">
+                  <span>Cloud shape</span>
+                  <select id="aspect">
+                    <option value="640x480">Landscape 4:3</option>
+                    <option value="560x560">Square</option>
+                    <option value="720x405">Wide 16:9</option>
+                    <option value="480x600">Portrait 4:5</option>
+                  </select>
+                </label>
+                <label class="switch" id="fadeRow">
+                  <input type="checkbox" id="fade" role="switch" />
+                  <span class="track" aria-hidden="true"></span>
+                  <span>Fade words every document uses</span>
+                </label>
+                <label class="field">
+                  <span>Layout number</span>
+                  <input type="number" id="seed" value="123456" />
+                  <span class="hint">The same number always gives the same layout. New layout picks a random one.</span>
+                </label>
+              </div>
+            </details>
+          </section>
+        </div>
       </aside>
 
       <section class="results" aria-label="Clouds">
         <div class="results-head">
           <div>
-            <h1 id="title">Compare documents at a glance</h1>
+            <h2 id="title" class="results-title"></h2>
             <p id="blurb" class="blurb"></p>
             <p id="findings" class="findings"></p>
             <p id="status" class="status" role="status"></p>
@@ -134,9 +166,9 @@
         <div class="toolbar" id="toolbar" hidden>
           <div class="segmented" role="radiogroup" aria-label="Layout">
             <input type="radio" name="mode" id="mode-c" value="coordinated" checked />
-            <label for="mode-c" title="Shared words keep the same place, color and angle in every cloud">Word storm</label>
+            <label for="mode-c" title="Shared words have the same place, color and angle in every cloud">Word storm</label>
             <input type="radio" name="mode" id="mode-i" value="independent" />
-            <label for="mode-i" title="Each cloud is laid out on its own, like an ordinary word cloud">Separate clouds</label>
+            <label for="mode-i" title="Each cloud is made on its own, like a regular word cloud">Separate clouds</label>
           </div>
           <button type="button" id="regen" class="regen" title="Try another arrangement (R)">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -148,9 +180,9 @@
               Download
             </span>
             <div class="btn-group">
-              <button type="button" id="dlSvg">SVG</button>
-              <button type="button" id="dlPng">PNG</button>
-              <button type="button" id="dlJson">JSON</button>
+              <button type="button" id="dlSvg" title="One SVG per cloud, in a .zip">SVG</button>
+              <button type="button" id="dlPng" title="One PNG per cloud, in a .zip">PNG</button>
+              <button type="button" id="dlJson" title="The position, size, color and angle of every word">JSON</button>
             </div>
           </div>
         </div>
@@ -160,34 +192,137 @@
         </div>
         <div id="grid" class="grid"></div>
         <div id="empty" class="empty" hidden>
-          <div class="empty-art" aria-hidden="true">
-            <span style="--c: #2a6f97">storm</span><span style="--c: #d62839">words</span><span style="--c: #e07a1f">compare</span>
+          <div class="bigdrop" id="bigdrop">
+            <div class="ghosts" aria-hidden="true">
+              <div class="ghost">
+                <span class="w" style="--x: 18%; --y: 30%; --s: 1.5em; --c: #2a6f97">storm</span>
+                <span class="w" style="--x: 30%; --y: 62%; --s: 1.05em; --c: #d62839">words</span>
+                <span class="w" style="--x: 58%; --y: 22%; --s: 0.85em; --c: #e07a1f">chapter</span>
+                <span class="w" style="--x: 60%; --y: 80%; --s: 0.8em; --c: #2f9e44">night</span>
+                <small>Document 1</small>
+              </div>
+              <div class="ghost">
+                <span class="w" style="--x: 18%; --y: 30%; --s: 1.5em; --c: #2a6f97">storm</span>
+                <span class="w" style="--x: 30%; --y: 62%; --s: 1.05em; --c: #d62839">words</span>
+                <span class="w" style="--x: 58%; --y: 22%; --s: 0.85em; --c: #e07a1f">speech</span>
+                <span class="w" style="--x: 60%; --y: 80%; --s: 0.8em; --c: #2f9e44">vote</span>
+                <small>Document 2</small>
+              </div>
+              <div class="ghost">
+                <span class="w" style="--x: 18%; --y: 30%; --s: 1.5em; --c: #2a6f97">storm</span>
+                <span class="w" style="--x: 30%; --y: 62%; --s: 1.05em; --c: #d62839">words</span>
+                <span class="w" style="--x: 58%; --y: 22%; --s: 0.85em; --c: #e07a1f">paper</span>
+                <span class="w" style="--x: 60%; --y: 80%; --s: 0.8em; --c: #2f9e44">model</span>
+                <small>Document 3</small>
+              </div>
+            </div>
+            <h2>Drop your documents here</h2>
+            <p>You need at least two text files, one per document. Each file becomes a cloud, and the words they share go in the same place.</p>
+            <button type="button" id="browse" class="primary big"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Choose files</button>
+            <p class="privacy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Everything runs in your browser. Your files never leave your computer.</span></p>
           </div>
-          <h2>Add some documents</h2>
-          <p>
-            Drop a few text files on the left, one per document: speeches, chapters, reviews, survey answers.
-            Words they share keep the same place, color and angle in every cloud, so similar documents look
-            similar and what's distinctive stands out.
-          </p>
-          <button type="button" id="example2" class="primary">Try an example</button>
+          <div class="empty-tips">
+            <div>
+              <h3>Ideas</h3>
+              <ul>
+                <li>The chapters of a book, or the books in a series</li>
+                <li>Speeches by different politicians</li>
+                <li>Papers on the same topic</li>
+                <li>Reviews or survey answers, one file per group</li>
+              </ul>
+            </div>
+            <div>
+              <h3>Tips</h3>
+              <ul>
+                <li>Use plain text files (.txt or .md)</li>
+                <li>Longer texts make better clouds; a few thousand words each is plenty</li>
+                <li>Three to nine documents work best</li>
+                <li>Each file name becomes its cloud’s title</li>
+              </ul>
+            </div>
+          </div>
+          <div class="empty-start">
+            <h3>Or start from one of the examples</h3>
+            <div class="example-list row" id="startFrom"></div>
+          </div>
         </div>
       </section>
     </main>
 
-    <section id="about" class="about">
+    <section id="how" class="about">
       <h2>How it works</h2>
       <ol class="steps">
-        <li><strong>Pick words.</strong> Each document's most frequent words, ignoring common English words like "the" and "and".</li>
-        <li><strong>Place shared words together.</strong> A word in several documents goes to the average of its positions, cloud by cloud, until positions settle.</li>
-        <li><strong>Refine.</strong> A force layout pulls each word toward its position in similar documents, pushes overlaps apart and keeps clouds compact.</li>
-        <li><strong>Fill in.</strong> Words unique to one document fill the space around them.</li>
+        <li><strong>Pick the words.</strong> We take each document's most frequent words and skip common ones like "the" and "and". If you ask for it, words a document uses more than the others get a boost.</li>
+        <li><strong>Line up shared words.</strong> A word that appears in several documents moves toward the average of its positions, one cloud at a time, until it stops moving.</li>
+        <li><strong>Tidy up.</strong> A force layout pulls each word toward where it sits in similar documents, pushes overlapping words apart and keeps the clouds compact.</li>
+        <li><strong>Fill in.</strong> Words that only one document uses go in last, around the shared ones.</li>
       </ol>
       <p class="fineprint">
-        Everything runs in your browser; your files never leave your computer. Method from Castella &amp; Sutton,
-        <em>Word Storms: Multiples of Word Clouds for Visual Comparison of Documents</em> (WWW 2014).
-        Fonts are open-source, from Google Fonts via Fontsource.
+        The <a href="https://github.com/quimcastella/wordstorms/blob/master/ALGORITHM.md" rel="noopener">full algorithm</a> is on GitHub,
+        and the <a href="https://arxiv.org/abs/1301.0503" rel="noopener">paper</a> explains the method and how we tested it.
       </p>
     </section>
+
+    <section id="compare" class="about compare">
+      <h2>Why not just make separate clouds?</h2>
+      <p class="compare-lede">
+        These are the same six collections twice, with the same font and colors. In the word storm, a word keeps its place
+        and color in every cloud it appears in. Follow “king” and you’ll find it in the same spot in Grimm, Perrault, the
+        Arabian Nights and the Japanese tales. Grimm has the most in common with all the others. Aesop is the exception: his
+        fables are about foxes, lions and wolves, and only 9 of his 40 words show up anywhere else (hare and monkey turn up
+        in the Japanese tales too). That’s why most of his cloud is thin, which is how this storm marks words no other
+        collection uses. The separate clouds were each made on their own, the way most word cloud tools make them, so words
+        land in a new place and color every time and you can’t see any of this. Aesop just looks like one more cloud.
+      </p>
+      <div class="compare-grid">
+        <figure class="compare-col">
+          <figcaption><strong>Word storm</strong><span>Shared words line up</span></figcaption>
+          <div class="grid mini" id="cmpStorm"></div>
+        </figure>
+        <figure class="compare-col">
+          <figcaption><strong>Six separate clouds</strong><span>Each one made on its own</span></figcaption>
+          <div class="grid mini" id="cmpSeparate"></div>
+        </figure>
+      </div>
+      <p class="fineprint" id="cmpStatus">Hover a word to find it in the other clouds.</p>
+    </section>
+
+    <footer class="site-foot">
+      <div class="foot-grid">
+        <div class="foot-about">
+          <p class="sig"><strong>Word Storms</strong> by Quim Castella and Charles Sutton</p>
+          <p>
+            Based on our paper <a href="https://arxiv.org/abs/1301.0503" rel="noopener"><em>Word Storms: Multiples of Word Clouds for
+            Visual Comparison of Documents</em></a>, presented at WWW 2014.
+          </p>
+          <p>
+            The code is open source (Apache 2.0) and lives on <a href="https://github.com/quimcastella/wordstorms" rel="noopener">GitHub</a>,
+            along with the full algorithm and the original Java version.
+          </p>
+        </div>
+        <div class="foot-cite">
+          <div class="cite-head">
+            <h3>How to cite</h3>
+            <button type="button" id="copyCite" class="linkish">Copy BibTeX</button>
+          </div>
+          <pre id="bibtex">@inproceedings{castella2014wordstorms,
+  title     = {Word Storms: Multiples of Word Clouds for
+               Visual Comparison of Documents},
+  author    = {Castella, Quim and Sutton, Charles},
+  booktitle = {Proceedings of the 23rd International
+               Conference on World Wide Web (WWW)},
+  year      = {2014},
+  note      = {arXiv:1301.0503}
+}</pre>
+        </div>
+      </div>
+      <p class="credits">
+        The fonts are open-source <a href="https://fonts.google.com" rel="noopener">Google Fonts</a>, served with
+        <a href="https://fontsource.org" rel="noopener">Fontsource</a>. The example texts are in the public domain and come from
+        <a href="https://www.gutenberg.org" rel="noopener">Project Gutenberg</a>. The original version was built on
+        <a href="https://github.com/danbernier/WordCram" rel="noopener">WordCram</a>, and the English stop words come from Jonathan Feinberg’s cue.language.
+      </p>
+    </footer>
 
     <script type="module" src="/src/app/main.ts"></script>
   </body>

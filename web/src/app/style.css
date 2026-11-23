@@ -144,6 +144,10 @@ svg {
   letter-spacing: -0.02em;
 }
 
+.brand span {
+  white-space: nowrap;
+}
+
 .logo {
   width: 28px;
   height: 28px;
@@ -156,6 +160,7 @@ svg {
 }
 
 .top nav a {
+  white-space: nowrap;
   color: var(--muted);
   text-decoration: none;
   font-weight: 500;
@@ -172,6 +177,58 @@ svg {
 .gh svg {
   width: 17px;
   height: 17px;
+}
+
+/* ---------- Intro and the two paths ---------- */
+
+.intro {
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 2.2rem 1.75rem 0.4rem;
+}
+
+.intro h1 {
+  font-size: clamp(2.2rem, 4.5vw, 3.3rem);
+  letter-spacing: -0.03em;
+}
+
+.lede {
+  max-width: 62ch;
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.viewtabs {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 1.4rem;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.viewtabs button {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0.6rem 1.25rem;
+  border-radius: 9px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.98rem;
+}
+
+.viewtabs button:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.viewtabs button[aria-selected='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* ---------- Layout ---------- */
@@ -199,6 +256,15 @@ svg {
   padding: 1.35rem;
   box-shadow: var(--shadow);
   scrollbar-width: thin;
+}
+
+.pane {
+  display: grid;
+  gap: 1.6rem;
+}
+
+.pane[hidden] {
+  display: none;
 }
 
 .panel section {
@@ -680,8 +746,12 @@ legend {
   margin-bottom: 0.9rem;
 }
 
-.results-head h1 {
-  font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+.results-title {
+  font-size: clamp(1.45rem, 2.3vw, 1.9rem);
+}
+
+.results-title:empty {
+  display: none;
 }
 
 .status {
@@ -803,6 +873,10 @@ legend {
 .btn-group button:hover {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.focusbar[hidden] {
+  display: none;
 }
 
 .focusbar {
@@ -938,53 +1012,206 @@ legend {
   }
 }
 
-/* ---------- Empty state ---------- */
+/* ---------- Examples pane ---------- */
+
+.example-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.example-card {
+  display: grid;
+  gap: 0.15rem;
+  text-align: left;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.example-card strong {
+  font-size: 0.93rem;
+}
+
+.example-card span {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.example-card[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.example-card[aria-pressed='true'] strong {
+  color: var(--accent);
+}
+
+.explain {
+  display: grid;
+  gap: 0.15rem 0;
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.explain dt {
+  color: var(--muted);
+  margin-top: 0.45rem;
+}
+
+.explain dt:first-child {
+  margin-top: 0;
+}
+
+.explain dd {
+  display: grid;
+  margin: 0;
+}
+
+.explain dd span {
+  color: var(--faint);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.privacy svg {
+  width: 15px;
+  height: 15px;
+  margin-top: 0.1rem;
+}
+
+/* ---------- Empty state (Make your own, no documents yet) ---------- */
 
 .empty {
   display: grid;
-  justify-items: start;
-  gap: 0.9rem;
-  max-width: 36rem;
-  padding: 3rem 0;
+  gap: 1.5rem;
 }
 
 .empty[hidden] {
   display: none;
 }
 
-.empty h2 {
-  font-size: 1.7rem;
+.bigdrop {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  text-align: center;
+  padding: 2.2rem 1.5rem 1.8rem;
+  border: 2px dashed color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--surface);
+  transition: border-color 0.15s, background 0.15s;
 }
 
-.empty p {
+.bigdrop.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.bigdrop h2 {
+  font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+}
+
+.bigdrop > p {
   margin: 0;
+  max-width: 46ch;
   color: var(--muted);
 }
 
-.empty-art {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  font-family: 'Oswald', sans-serif;
-  font-weight: 600;
-  line-height: 1;
+.bigdrop .privacy {
+  justify-content: center;
+  max-width: none;
 }
 
-.empty-art span {
+button.big {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.4rem;
+  font-size: 1rem;
+  margin: 0.3rem 0;
+}
+
+button.big svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Three tiny clouds: the same shared words in the same place, plus each one's own. */
+.ghosts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 9.5rem));
+  gap: 0.7rem;
+  margin-bottom: 0.6rem;
+}
+
+.ghost {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font: 600 clamp(0.62rem, 1.2vw, 0.9rem) / 1 'Oswald', 'Arial Narrow', sans-serif;
+  overflow: hidden;
+}
+
+.ghost .w {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  font-size: var(--s);
   color: var(--c);
+  transform: translateY(-50%);
 }
 
-.empty-art span:nth-child(1) {
-  font-size: 2.6rem;
+.ghost small {
+  position: absolute;
+  left: 0.5rem;
+  bottom: 0.35rem;
+  font: 500 0.62rem var(--ui);
+  color: var(--faint);
 }
 
-.empty-art span:nth-child(2) {
-  font-size: 1.6rem;
-  opacity: 0.7;
+.empty-tips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 1rem;
 }
 
-.empty-art span:nth-child(3) {
-  font-size: 2rem;
+.empty-tips > div {
+  padding: 1rem 1.15rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.empty h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.empty-tips ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.example-list.row {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
 }
 
 /* ---------- About ---------- */
@@ -1041,7 +1268,127 @@ legend {
   font-size: 0.86rem;
 }
 
+/* ---------- Storm vs separate clouds ---------- */
+
+.compare-lede {
+  max-width: 72ch;
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+.compare-grid {
+  margin-top: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+  gap: 1.5rem 2rem;
+}
+
+.compare-col {
+  margin: 0;
+  display: grid;
+  gap: 0.7rem;
+  align-content: start;
+}
+
+.compare-col > figcaption {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.compare-col > figcaption strong {
+  font: 700 1.1rem var(--display);
+}
+
+.compare-col > figcaption span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.grid.mini {
+  --gap: 0.6rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.grid.mini .cloud figcaption {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+/* ---------- Footer ---------- */
+
+.site-foot {
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 2.5rem 1.75rem 3rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.foot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 1.5rem 3rem;
+}
+
+.foot-about p {
+  margin: 0 0 0.6rem;
+  max-width: 52ch;
+}
+
+.sig {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.sig strong {
+  font-family: var(--display);
+}
+
+.cite-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.cite-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+#bibtex {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: 0.78rem/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color: var(--text);
+}
+
+.credits {
+  margin: 1.8rem 0 0;
+  max-width: 90ch;
+  color: var(--faint);
+  font-size: 0.82rem;
+}
+
 /* ---------- Narrow screens ---------- */
+
+@media (max-width: 520px) {
+  .ghost small {
+    display: none;
+  }
+
+  .top nav a.navlink[href^='#how'] {
+    display: none;
+  }
+}
 
 @media (max-width: 860px) {
   .top {
@@ -1050,6 +1397,36 @@ legend {
 
   .top nav a span {
     display: none;
+  }
+
+  .top nav a.navlink[href^='#examples'],
+  .top nav a.navlink[href^='#create'] {
+    display: none;
+  }
+
+  .top nav {
+    gap: 1rem;
+  }
+
+  .intro {
+    padding: 1.4rem 16px 0;
+  }
+
+  .viewtabs {
+    display: flex;
+  }
+
+  .viewtabs button {
+    flex: 1;
+    padding: 0.55rem 0.6rem;
+  }
+
+  .site-foot {
+    padding: 2rem 16px 2.5rem;
+  }
+
+  .grid.mini {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .layout {
@@ -1081,17 +1458,6 @@ legend {
 }
 
 /* ---------- Examples ---------- */
-
-.examples {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.examples-label {
-  margin: 0;
-  font-size: 0.84rem;
-  color: var(--muted);
-}
 
 .chips {
   display: flex;

@@ -2,22 +2,30 @@ import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
 import '@fontsource/bricolage-grotesque/700.css';
+import { strToU8, zipSync, type Zippable } from 'fflate';
 import { PALETTES, type PaletteName } from '../core/palettes.ts';
-import { generateStorm, type Doc, type Storm, type StormOptions } from '../core/storm.ts';
-import { createCanvasMeasurer } from '../measure/canvas.ts';
-import { cloudToSvg, stormToSvg } from '../render/svg.ts';
+import type { Cloud, Doc, Storm, StormOptions } from '../core/storm.ts';
+import { cloudToSvg } from '../render/svg.ts';
+import { setupComparison } from './compare.ts';
+import { computeStorm, pageFont, type Job } from './compute.ts';
 import { EXAMPLES, exampleById, loadExampleDocs, type Example, type ExampleLook } from './examples.ts';
-import { absoluteFaces, embeddedFontCss, fontById, FONTS, loadFont, type CloudFont } from './fonts.ts';
-import type { StormRequest, StormResponse } from './worker.ts';
+import { embeddedFontCss, fontById, FONTS, type CloudFont } from './fonts.ts';
 import './style.css';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 const ui = {
+  tabExamples: $<HTMLButtonElement>('tabExamples'),
+  tabCreate: $<HTMLButtonElement>('tabCreate'),
+  examplesPane: $('examplesPane'),
+  createPane: $('createPane'),
+  examples: $('examples'),
+  explain: $('explain'),
+  tweak: $<HTMLButtonElement>('tweak'),
   drop: $<HTMLLabelElement>('drop'),
   files: $<HTMLInputElement>('files'),
-  examples: $('examples'),
-  example2: $<HTMLButtonElement>('example2'),
+  browse: $<HTMLButtonElement>('browse'),
+  startFrom: $('startFrom'),
   clear: $<HTMLButtonElement>('clear'),
   doclist: $<HTMLUListElement>('doclist'),
   words: $<HTMLInputElement>('words'),
@@ -50,46 +58,47 @@ const ui = {
   dlSvg: $<HTMLButtonElement>('dlSvg'),
   dlPng: $<HTMLButtonElement>('dlPng'),
   dlJson: $<HTMLButtonElement>('dlJson'),
+  copyCite: $<HTMLButtonElement>('copyCite'),
+  bibtex: $('bibtex'),
 };
 
 const MODE_HINTS = {
-  coordinated: 'Shared words keep the same place, color and angle in every cloud.',
-  independent: 'Each cloud is laid out on its own, like an ordinary word cloud.',
+  coordinated: 'Shared words have the same place, color and angle in every cloud.',
+  independent: 'Each cloud is made on its own, like a regular word cloud.',
 };
 /** In fourteenths, so the original's 2 in 7 is a stop. */
 const VERTICAL_STEPS = 14;
+const MARK_LABELS = { none: 'None', weight: 'Weight', warmth: 'Warm/cool' };
 const MARK_HINTS = {
-  none: 'Every word gets a random color from the palette, as in the original.',
-  weight: 'Words only one document uses are drawn thin; shared words stay bold.',
-  warmth: 'Shared words get warm colors; words only one document uses get cool ones.',
+  none: 'Each word gets a random color from the palette, like in the original.',
+  weight: 'Words that only one document uses are drawn thin, and shared words stay bold.',
+  warmth: 'Shared words get warm colors and the rest get cool ones.',
 };
-const FOCUS_HINT = 'Hover a word to find it in every cloud; click to pin it.';
+const FOCUS_HINT = 'Hover over a word to find it in the other clouds, or click to pin it.';
 const focusHint = () => `${MODE_HINTS[selected('mode') as StormOptions['mode']]} ${FOCUS_HINT}`;
 const DEFAULT_EXAMPLE = EXAMPLES[0];
 
+type View = 'examples' | 'create';
+type Controls = (string | boolean)[];
+
+let view: View = 'examples';
+/** The example shown under Explore examples. */
+let example: Example = DEFAULT_EXAMPLE;
+/** The documents being laid out: the example's, or yours under Make your own. */
 let docs: Doc[] = [];
-let example: Example | null = null;
+/** Your documents and settings under Make your own, kept while you look at examples. */
+let createDocs: Doc[] = [];
+let createControls: Controls | null = null;
+/** The example Make your own started from (its documents and hidden ignore list), until you add your own files. */
+let createFrom: Example | null = null;
 let storm: Storm | null = null;
 let stormFont: CloudFont = FONTS[0];
-let worker: Worker | null = null;
+let current: Job | null = null;
 let job = 0;
 let rerunTimer = 0;
 let pinned: string | null = null;
 
 // ---------- Pickers ----------
-
-const pageFaces = new Map<string, Promise<void>>();
-
-/** Loads a font's regular (or light) weight on the page, once. */
-function pageFont(font: CloudFont, light: boolean): Promise<void> {
-  const key = `${font.id}|${light}`;
-  let loaded = pageFaces.get(key);
-  if (!loaded) {
-    loaded = loadFont(document.fonts, light ? { ...font, files: [] } : { ...font, lightFiles: [] });
-    pageFaces.set(key, loaded);
-  }
-  return loaded;
-}
 
 function buildPickers() {
   for (const f of FONTS) {
@@ -127,32 +136,69 @@ function buildPickers() {
 
 const selected = (name: string) => (document.querySelector(`input[name=${name}]:checked`) as HTMLInputElement).value;
 
-// ---------- Documents ----------
+// ---------- Views ----------
 
-async function addFiles(list: FileList | File[]) {
-  const files = [...list].filter((f) => /\.(txt|md|text)$/i.test(f.name) || f.type.startsWith('text/'));
-  if (!files.length) {
-    setStatus('Those don’t look like text files. Use .txt files, one per document.', 'error');
-    return;
-  }
-  const added = await Promise.all(files.map(async (f) => ({ name: f.name.replace(/\.[^.]+$/, ''), text: await f.text() })));
-  const names = new Set(added.map((d) => d.name));
-  // Your own files replace an example rather than mixing with it.
-  const kept = example ? [] : docs.filter((d) => !names.has(d.name));
-  docs = [...kept, ...added].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-  setExample(null);
-  docsChanged();
+/** The settings controls under Make your own (not the file input). */
+const controlEls = () =>
+  [...ui.createPane.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')].filter((el) => el !== ui.files);
+const isToggle = (el: HTMLInputElement | HTMLSelectElement): el is HTMLInputElement =>
+  el instanceof HTMLInputElement && (el.type === 'radio' || el.type === 'checkbox');
+
+function saveControls(): Controls {
+  return controlEls().map((el) => (isToggle(el) ? el.checked : el.value));
 }
 
-async function loadExample(ex: Example) {
-  setExample(ex);
+function restoreControls(saved: Controls) {
+  controlEls().forEach((el, i) => {
+    if (isToggle(el)) el.checked = saved[i] as boolean;
+    else el.value = saved[i] as string;
+  });
+  syncControls();
+}
+
+function setView(next: View) {
+  if (view === 'create' && next !== 'create') {
+    createDocs = docs;
+    createControls = saveControls();
+  }
+  view = next;
+  ui.tabExamples.setAttribute('aria-selected', String(next === 'examples'));
+  ui.tabCreate.setAttribute('aria-selected', String(next === 'create'));
+  ui.examplesPane.hidden = next !== 'examples';
+  ui.createPane.hidden = next !== 'create';
+  document.body.dataset.view = next;
+  const url = new URL(location.href);
+  url.hash = next === 'create' ? 'create' : '';
+  if (next === 'examples') url.searchParams.set('example', example.id);
+  else url.searchParams.delete('example');
+  history.replaceState(null, '', url);
+  if (next === 'examples') {
+    showExample(example);
+  } else {
+    if (createControls) restoreControls(createControls);
+    docs = createDocs;
+    storm = null;
+    docsChanged();
+  }
+}
+
+async function showExample(ex: Example) {
+  example = ex;
+  ui.examples.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === ex.id)));
+  if (view !== 'examples') return;
+  const url = new URL(location.href);
+  url.searchParams.set('example', ex.id);
+  history.replaceState(null, '', url);
   applyLook(ex.look);
+  explainLook(ex.look);
   storm = null;
+  docs = [];
   renderSkeleton(ex.docs.length);
+  showHeading();
   setStatus('Loading example…', 'busy');
   try {
     const loaded = await loadExampleDocs(ex);
-    if (example !== ex) return; // another example was picked meanwhile
+    if (view !== 'examples' || example !== ex) return; // moved on meanwhile
     docs = loaded;
     docsChanged();
   } catch (err) {
@@ -160,7 +206,19 @@ async function loadExample(ex: Example) {
   }
 }
 
-/** Sets the panel's controls to an example's look; everything stays editable. */
+/** Opens an example under Make your own, with its documents and look, to change or download. */
+async function tweakExample(ex: Example) {
+  example = ex;
+  const loaded = await loadExampleDocs(ex);
+  applyLook(ex.look);
+  createControls = saveControls();
+  createDocs = loaded;
+  createFrom = ex;
+  view = 'examples'; // so setView doesn't save the old create state over this
+  setView('create');
+}
+
+/** Sets the panel's controls to an example's look. */
 function applyLook({ font, options: o }: ExampleLook) {
   const check = (name: string, value: string) => {
     const input = document.querySelector<HTMLInputElement>(`input[name=${name}][value="${value}"]`);
@@ -176,32 +234,120 @@ function applyLook({ font, options: o }: ExampleLook) {
   ui.aspect.value = `${o.width}x${o.height}`;
   ui.seed.value = String(o.seed);
   ui.stop.value = '';
+  ui.fade.checked = false;
   syncControls();
 }
 
-function setExample(ex: Example | null) {
-  example = ex;
-  ui.examples.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.id === ex?.id)));
-  const url = new URL(location.href);
-  if (ex) url.searchParams.set('example', ex.id);
-  else url.searchParams.delete('example');
-  history.replaceState(null, '', url);
+const sizeLabel = (c: number) => (c < 100 ? 'Gentle' : c === 100 ? 'Original' : 'Dramatic');
+const verticalLabel = (v: number) => (v === 0 ? 'None' : v === VERTICAL_STEPS ? 'All' : `${Math.round((100 * v) / VERTICAL_STEPS)}%`);
+
+/** Spells out an example's settings and what each one does. */
+function explainLook({ font, options: o }: ExampleLook) {
+  const d = Math.round(o.distinctiveness * 100);
+  const f = fontById(font);
+  const shape = [...ui.aspect.options].find((op) => op.value === `${o.width}x${o.height}`)?.text ?? `${o.width}×${o.height}`;
+  const rows: [string, string, string][] = [
+    ['Words per cloud', String(o.maxWords), 'How many words to draw from each document. Common words like “the” are left out.'],
+    [
+      'Favor distinctive words',
+      d === 0 ? 'Off' : `${d}%`,
+      d === 0
+        ? 'Words are sized by how often they appear.'
+        : 'Gives a boost to words a document uses more than the others do. Turn it up to see names and topics, down to see the vocabulary they share.',
+    ],
+    ['Shared words', MARK_LABELS[o.markShared], MARK_HINTS[o.markShared]],
+    ['Colors', PALETTES[o.palette].label, 'A shared word has the same color in every cloud.'],
+    ['Font', f.label, f.note + '.'],
+    ['Size differences', sizeLabel(Math.round(o.sizeExponent * 100)), 'How much bigger the most frequent words get.'],
+    ['Vertical words', verticalLabel(Math.round(o.verticalShare * VERTICAL_STEPS)), 'How many words are turned sideways. A few help the clouds pack tighter.'],
+    ['Cloud shape', shape, ''],
+    ['Layout number', String(o.seed), 'Picks one of many possible layouts. The same number always gives the same one.'],
+  ];
+  ui.explain.replaceChildren(
+    ...rows.flatMap(([term, value, note]) => {
+      const dt = document.createElement('dt');
+      dt.textContent = term;
+      const dd = document.createElement('dd');
+      const strong = document.createElement('strong');
+      strong.textContent = value;
+      dd.append(strong);
+      if (note) {
+        const span = document.createElement('span');
+        span.textContent = note;
+        dd.append(span);
+      }
+      return [dt, dd];
+    }),
+  );
 }
 
-function buildExampleChips() {
+function exampleCard(ex: Example): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'example-card';
+  b.dataset.id = ex.id;
+  b.setAttribute('aria-pressed', 'false');
+  const title = document.createElement('strong');
+  title.textContent = ex.title;
+  const meta = document.createElement('span');
+  meta.textContent = `${ex.docs.length} clouds · ${fontById(ex.look.font).label} · ${PALETTES[ex.look.options.palette].label}`;
+  b.append(title, meta);
+  return b;
+}
+
+function buildExampleLists() {
   ui.examples.replaceChildren(
     ...EXAMPLES.map((ex) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'chip';
-      b.dataset.id = ex.id;
-      b.textContent = ex.title;
-      b.title = ex.blurb;
-      b.setAttribute('aria-pressed', 'false');
-      b.onclick = () => loadExample(ex);
+      const b = exampleCard(ex);
+      b.onclick = () => showExample(ex);
       return b;
     }),
   );
+  ui.startFrom.replaceChildren(
+    ...EXAMPLES.map((ex) => {
+      const b = exampleCard(ex);
+      b.removeAttribute('aria-pressed');
+      b.onclick = () => tweakExample(ex);
+      return b;
+    }),
+  );
+}
+
+// ---------- Documents ----------
+
+async function addFiles(list: FileList | File[]) {
+  const files = [...list].filter((f) => /\.(txt|md|text)$/i.test(f.name) || f.type.startsWith('text/'));
+  if (!files.length) {
+    setStatus('Those don’t look like text files. Use .txt files, one per document.', 'error');
+    return;
+  }
+  const added = await Promise.all(files.map(async (f) => ({ name: f.name.replace(/\.[^.]+$/, ''), text: await f.text() })));
+  if (view !== 'create') {
+    // Dropping files while looking at examples starts your own storm, in the example's look.
+    createControls = saveControls();
+    createDocs = [];
+    createFrom = null;
+    view = 'examples';
+    setView('create');
+  }
+  const names = new Set(added.map((d) => d.name));
+  // Your own files replace an example's documents rather than mixing with them.
+  const kept = createFrom ? [] : docs.filter((d) => !names.has(d.name));
+  createFrom = null;
+  docs = [...kept, ...added].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  docsChanged();
+}
+
+function showHeading() {
+  if (view === 'examples') {
+    ui.title.textContent = example.title;
+    ui.blurb.textContent = example.blurb;
+    ui.findings.textContent = example.findings ?? '';
+  } else {
+    ui.title.textContent = docs.length === 0 ? '' : createFrom ? createFrom.title : 'Your documents';
+    ui.blurb.textContent = createFrom && docs.length ? 'Change any setting you like, or drop in your own files to replace these.' : '';
+    ui.findings.textContent = '';
+  }
 }
 
 function docsChanged() {
@@ -226,9 +372,7 @@ function docsChanged() {
     }),
   );
   ui.clear.hidden = docs.length < 2;
-  ui.title.textContent = docs.length === 0 ? 'Compare documents at a glance' : example ? example.title : 'Your documents';
-  ui.blurb.textContent = docs.length && example ? example.blurb : '';
-  ui.findings.textContent = docs.length && example?.findings ? example.findings : '';
+  showHeading();
   run();
 }
 
@@ -237,6 +381,7 @@ function docsChanged() {
 function readOptions(): Partial<StormOptions> {
   const mode = selected('mode') as StormOptions['mode'];
   const [width, height] = ui.aspect.value.split('x').map(Number);
+  const hidden = view === 'examples' ? example.look.ignore : (createFrom?.look.ignore ?? []);
   return {
     mode,
     maxWords: Number(ui.words.value),
@@ -247,7 +392,7 @@ function readOptions(): Partial<StormOptions> {
     fadeCommonWords: ui.fade.checked,
     palette: selected('palette') as PaletteName,
     // An example's own ignore list applies too, without filling the field.
-    extraStopwords: [...ui.stop.value.split(/[\s,;]+/).filter(Boolean), ...(example?.look.ignore ?? [])],
+    extraStopwords: [...ui.stop.value.split(/[\s,;]+/).filter(Boolean), ...hidden],
     width,
     height,
     seed: Number(ui.seed.value) || 0,
@@ -262,14 +407,12 @@ function syncControls() {
   const font = fontById(selected('font'));
   ui.markhint.textContent =
     mark === 'weight' && !font.spec.lightWeight
-      ? `${font.label} has only one weight, so this marks nothing. Pick another font to see it.`
+      ? `${font.label} only has one weight, so this won’t change anything. Try another font.`
       : MARK_HINTS[mark];
   const d = Number(ui.distinct.value);
   ui.distinctOut.textContent = d === 0 ? 'Off' : `${d}%`;
-  const c = Number(ui.contrast.value);
-  ui.contrastOut.textContent = c < 100 ? 'Gentle' : c === 100 ? 'Original' : 'Dramatic';
-  const v = Number(ui.vertical.value);
-  ui.verticalOut.textContent = v === 0 ? 'None' : v === VERTICAL_STEPS ? 'All' : `${Math.round((100 * v) / VERTICAL_STEPS)}%`;
+  ui.contrastOut.textContent = sizeLabel(Number(ui.contrast.value));
+  ui.verticalOut.textContent = verticalLabel(Number(ui.vertical.value));
   if (!ui.focus.classList.contains('active')) ui.focus.textContent = focusHint();
 }
 
@@ -282,8 +425,8 @@ function optionsChanged() {
 // ---------- Running ----------
 
 function run() {
-  worker?.terminate();
-  worker = null;
+  current?.cancel();
+  current = null;
   const id = ++job;
   if (docs.length === 0) {
     storm = null;
@@ -292,56 +435,28 @@ function run() {
     return;
   }
   const font = fontById(selected('font'));
-  const request: StormRequest = {
-    docs,
-    options: readOptions(),
-    font: absoluteFaces(font),
-  };
   const started = performance.now();
   setStatus(`Building ${docs.length} cloud${docs.length === 1 ? '' : 's'}…`, 'busy');
   if (!storm) renderSkeleton(docs.length);
   ui.grid.setAttribute('aria-busy', 'true');
-
-  const finish = async (s: Storm) => {
-    // The worker loaded the font for itself; the page needs it too, to draw.
-    await Promise.all([pageFont(font, false), pageFont(font, true)]).catch(() => {});
-    if (id !== job) return;
-    storm = s;
-    stormFont = font;
-    ui.grid.removeAttribute('aria-busy');
-    render();
-    setStatus(summary(s, performance.now() - started));
-  };
-  const fail = (message: string) => {
-    if (id !== job) return;
-    ui.grid.removeAttribute('aria-busy');
-    setStatus(`Something went wrong: ${message}`, 'error');
-  };
-
-  const w = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-  worker = w;
-  w.onmessage = (e: MessageEvent<StormResponse>) => {
-    const msg = e.data;
-    if (msg.type === 'progress') {
-      if (id === job) setStatus(`${msg.message}…`, 'busy');
-      return;
-    }
-    w.terminate();
-    if (worker === w) worker = null;
-    if (msg.type === 'done') finish(msg.storm);
-    else if (msg.type === 'error') fail(msg.message);
-    else runOnPage(request, font).then(finish, (err) => fail(String(err)));
-  };
-  w.onerror = (e) => fail(e.message);
-  w.postMessage(request);
-}
-
-/** Fallback for browsers that can't draw text in a worker: lay out on the page. */
-async function runOnPage(request: StormRequest, font: CloudFont): Promise<Storm> {
-  await Promise.all([pageFont(font, false), pageFont(font, true)]);
-  await new Promise((r) => setTimeout(r, 30));
-  const measurer = createCanvasMeasurer((w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h }), font.spec);
-  return generateStorm(request.docs, request.options, measurer);
+  current = computeStorm(docs, readOptions(), font, (message) => {
+    if (id === job) setStatus(`${message}…`, 'busy');
+  });
+  current.promise.then(
+    (s) => {
+      if (id !== job) return;
+      storm = s;
+      stormFont = font;
+      ui.grid.removeAttribute('aria-busy');
+      render();
+      setStatus(summary(s, performance.now() - started));
+    },
+    (err) => {
+      if (id !== job) return;
+      ui.grid.removeAttribute('aria-busy');
+      setStatus(`Something went wrong: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    },
+  );
 }
 
 function summary(s: Storm, ms: number): string {
@@ -383,11 +498,14 @@ function renderSkeleton(n: number) {
 }
 
 function render() {
-  ui.empty.hidden = !!storm || docs.length > 0;
-  ui.toolbar.hidden = docs.length === 0;
-  ui.actions.hidden = !storm;
+  const nothing = view === 'create' && docs.length === 0;
+  ui.empty.hidden = !nothing;
+  ui.toolbar.hidden = nothing;
+  ui.actions.hidden = !storm || view !== 'create';
+  ui.regen.hidden = false;
+  document.getElementById('focusbar')!.hidden = nothing;
   if (!storm) {
-    if (docs.length === 0) ui.grid.replaceChildren();
+    if (nothing) ui.grid.replaceChildren();
     return;
   }
   const s = storm;
@@ -423,7 +541,7 @@ function focusWord(word: string | null) {
     return;
   }
   ui.grid.classList.add('focusing');
-  highlight.textContent = `.grid.focusing text[data-word="${CSS.escape(word)}"] { opacity: 1; }`;
+  highlight.textContent = `#grid.focusing text[data-word="${CSS.escape(word)}"] { opacity: 1; }`;
   const n = storm.clouds.filter((c) => c.words.some((w) => w.text === word)).length;
   const where = n === storm.clouds.length ? 'every cloud' : n === 1 ? 'only one cloud' : `${n} of ${storm.clouds.length} clouds`;
   ui.focus.innerHTML = '';
@@ -467,19 +585,52 @@ function download(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-async function exportSvg(): Promise<string> {
-  if (!storm) return '';
-  return stormToSvg(storm, { font: stormFont.spec, css: await embeddedFontCss(stormFont) });
+/** A file name per cloud, safe on every OS and unique within the zip. */
+function fileNames(s: Storm, ext: string): string[] {
+  const used = new Set<string>();
+  return s.clouds.map((c, i) => {
+    const base = c.name.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim() || `cloud ${i + 1}`;
+    let name = `${base}.${ext}`;
+    for (let k = 2; used.has(name.toLowerCase()); k++) name = `${base} (${k}).${ext}`;
+    used.add(name.toLowerCase());
+    return name;
+  });
 }
 
-ui.dlSvg.onclick = async () => download(new Blob([await exportSvg()], { type: 'image/svg+xml' }), 'wordstorm.svg');
-ui.dlJson.onclick = () =>
-  storm && download(new Blob([JSON.stringify(storm, null, 2)], { type: 'application/json' }), 'wordstorm.json');
-ui.dlPng.onclick = async () => {
+const zipName = (kind: string) => `${createFrom?.id ?? 'wordstorm'}-${kind}.zip`;
+
+/**
+ * The clouds cut down to the box around every cloud's words, plus a small margin. All files share this frame,
+ * so shared words still line up when you stack them, without the empty space left around the storm.
+ */
+function cropped(s: Storm): { clouds: Cloud[]; width: number; height: number } {
+  const words = s.clouds.flatMap((c) => c.words);
+  if (!words.length) return { clouds: s.clouds, width: s.width, height: s.height };
+  const x0 = Math.min(...words.map((w) => w.x));
+  const y0 = Math.min(...words.map((w) => w.y));
+  const x1 = Math.max(...words.map((w) => w.x + w.width));
+  const y1 = Math.max(...words.map((w) => w.y + w.height));
+  const pad = Math.round(0.02 * Math.max(x1 - x0, y1 - y0));
+  const dx = pad - x0;
+  const dy = pad - y0;
+  return {
+    clouds: s.clouds.map((c) => ({ ...c, words: c.words.map((w) => ({ ...w, x: w.x + dx, y: w.y + dy })) })),
+    width: Math.ceil(x1 - x0 + 2 * pad),
+    height: Math.ceil(y1 - y0 + 2 * pad),
+  };
+}
+
+/** Each cloud as a standalone SVG in the shared, cropped frame, with its background and the font embedded. */
+async function cloudSvgs(s: Storm): Promise<string[]> {
+  const css = await embeddedFontCss(stormFont);
+  const { clouds, width, height } = cropped(s);
+  return clouds.map((c) => cloudToSvg(c, width, height, { font: stormFont.spec, css, background: s.background }));
+}
+
+async function svgToPng(svg: string, scale = 2): Promise<Uint8Array> {
   const img = new Image();
-  img.src = URL.createObjectURL(new Blob([await exportSvg()], { type: 'image/svg+xml' }));
+  img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   await img.decode();
-  const scale = 2;
   const canvas = document.createElement('canvas');
   canvas.width = img.naturalWidth * scale;
   canvas.height = img.naturalHeight * scale;
@@ -487,23 +638,71 @@ ui.dlPng.onclick = async () => {
   ctx.scale(scale, scale);
   ctx.drawImage(img, 0, 0);
   URL.revokeObjectURL(img.src);
-  canvas.toBlob((b) => b && download(b, 'wordstorm.png'), 'image/png');
-};
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('Could not draw the PNG');
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+async function withBusy(button: HTMLButtonElement, task: () => Promise<void>) {
+  button.disabled = true;
+  try {
+    await task();
+  } catch (err) {
+    setStatus(`Download failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+ui.dlSvg.onclick = () =>
+  withBusy(ui.dlSvg, async () => {
+    if (!storm) return;
+    const s = storm;
+    const svgs = await cloudSvgs(s);
+    const names = fileNames(s, 'svg');
+    const files: Zippable = Object.fromEntries(svgs.map((svg, i) => [names[i], strToU8(svg)]));
+    download(new Blob([zipSync(files, { level: 6 })], { type: 'application/zip' }), zipName('svg'));
+  });
+ui.dlPng.onclick = () =>
+  withBusy(ui.dlPng, async () => {
+    if (!storm) return;
+    const s = storm;
+    const svgs = await cloudSvgs(s);
+    const names = fileNames(s, 'png');
+    const pngs = await Promise.all(svgs.map((svg) => svgToPng(svg)));
+    // PNGs are already compressed; store them as they are.
+    const files: Zippable = Object.fromEntries(pngs.map((png, i) => [names[i], [png, { level: 0 }]]));
+    download(new Blob([zipSync(files)], { type: 'application/zip' }), zipName('png'));
+  });
+ui.dlJson.onclick = () =>
+  storm && download(new Blob([JSON.stringify(storm, null, 2)], { type: 'application/json' }), `${createFrom?.id ?? 'wordstorm'}.json`);
 
 // ---------- Wiring ----------
+
+ui.tabExamples.onclick = () => view !== 'examples' && setView('examples');
+ui.tabCreate.onclick = () => view !== 'create' && setView('create');
+ui.tweak.onclick = () => tweakExample(example);
+ui.browse.onclick = () => ui.files.click();
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#create' && view !== 'create') setView('create');
+  else if (location.hash === '#examples' && view !== 'examples') setView('examples');
+  if (location.hash === '#create' || location.hash === '#examples') document.querySelector('.intro')?.scrollIntoView();
+});
 
 ui.files.addEventListener('change', () => {
   if (ui.files.files) addFiles(ui.files.files);
   ui.files.value = '';
 });
-for (const type of ['dragenter', 'dragover']) {
-  ui.drop.addEventListener(type, (e) => {
-    e.preventDefault();
-    ui.drop.classList.add('over');
-  });
-}
-for (const type of ['dragleave', 'drop']) {
-  ui.drop.addEventListener(type, () => ui.drop.classList.remove('over'));
+for (const target of [ui.drop, $('bigdrop')]) {
+  for (const type of ['dragenter', 'dragover']) {
+    target.addEventListener(type, (e) => {
+      e.preventDefault();
+      target.classList.add('over');
+    });
+  }
+  for (const type of ['dragleave', 'drop']) {
+    target.addEventListener(type, () => target.classList.remove('over'));
+  }
 }
 // Dropping anywhere on the page works too.
 document.addEventListener('dragover', (e) => e.preventDefault());
@@ -512,10 +711,9 @@ document.addEventListener('drop', (e) => {
   if (e.dataTransfer?.files.length) addFiles(e.dataTransfer.files);
 });
 
-ui.example2.onclick = () => loadExample(DEFAULT_EXAMPLE);
 ui.clear.onclick = () => {
   docs = [];
-  setExample(null);
+  createFrom = null;
   docsChanged();
 };
 ui.regen.onclick = () => {
@@ -526,13 +724,22 @@ ui.regen.onclick = () => {
 for (const el of [ui.words, ui.distinct, ui.contrast, ui.vertical, ui.fade, ui.stop, ui.aspect, ui.seed]) {
   el.addEventListener(el === ui.stop ? 'change' : 'input', optionsChanged);
 }
+ui.copyCite.onclick = async () => {
+  await navigator.clipboard.writeText(ui.bibtex.textContent ?? '');
+  ui.copyCite.textContent = 'Copied';
+  setTimeout(() => (ui.copyCite.textContent = 'Copy BibTeX'), 1500);
+};
 
 buildPickers();
-buildExampleChips();
+buildExampleLists();
 document
   .querySelectorAll('input[name=mode], input[name=font], input[name=palette], input[name=markShared]')
   .forEach((r) => r.addEventListener('change', optionsChanged));
 
 syncControls();
-// Start with an example (?example=<id> picks one) so the page shows what it does.
-loadExample(exampleById(new URLSearchParams(location.search).get('example')) ?? DEFAULT_EXAMPLE);
+setupComparison($('cmpStorm'), $('cmpSeparate'), $('cmpStatus'));
+// Start on an example (?example=<id> picks one) so the page shows what it does, or on #create.
+example = exampleById(new URLSearchParams(location.search).get('example')) ?? DEFAULT_EXAMPLE;
+view = 'examples';
+if (location.hash === '#create') setView('create');
+else setView('examples');

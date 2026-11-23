@@ -9,13 +9,24 @@ similar and what's distinctive stands out.
 
 ## Use it
 
-**In your browser:** open the web app, drop in some `.txt` files (one per
-document), and download the result as SVG, PNG or JSON. Everything runs
-locally; your files never leave your computer.
+**In your browser:** go to [wordstorms.org](https://wordstorms.org). The page
+has two paths:
+
+- **Explore examples:** three built-in corpora, each with its own look, a
+  short note on what the clouds show, and an explanation of every setting.
+  **Tweak these settings** opens the example under Make your own.
+- **Make your own:** drop in some `.txt` files (one per document), change the
+  settings, try new layouts, and download the clouds: a .zip with one SVG or
+  PNG per cloud, or the whole storm as JSON. Everything runs in your browser;
+  your files never leave your computer.
 
 > The app deploys to GitHub Pages from `master` (see
 > [.github/workflows/web.yml](.github/workflows/web.yml)). Until then, run it
 > locally as shown below.
+
+Below the app, the page explains how it works and shows the fairy tales as a
+word storm next to six separately made clouds, to show why a storm is easier
+to compare.
 
 Things you can change:
 
@@ -65,7 +76,8 @@ npm run dev
 ```
 
 Then open http://localhost:5173. The page opens on an example; pick another
-with the chips under the drop zone, or link to one with `?example=<id>`.
+from the list, link to one with `?example=<id>`, or go straight to Make your
+own with `#create`.
 Each example has its own look (font, colors, how shared words stand out,
 cloud shape and layout number). Picking it sets the panel to that look,
 and you can change anything from there:

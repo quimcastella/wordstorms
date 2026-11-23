@@ -6,3 +6,6 @@ bin
 # Java build output
 build/
 dist/
+
+# Local test documents (third-party papers, not redistributable)
+test-texts/

@@ -48,8 +48,8 @@ export const EXAMPLES: Example[] = [
     title: 'Shakespeare: tragedies and comedies',
     blurb: 'Three tragedies and three comedies, dialogue only.',
     findings:
-      'Each word keeps its color and spot in every play. ' +
-      '“Heart” is in all six plays and “heaven” only in the tragedies, while “love” is missing from Macbeth alone, where fear, blood and sleep take its place.',
+      'A word has the same color and spot in every play. ' +
+      '“Heart” shows up in all six and “heaven” only in the tragedies. “Love” is in every play except Macbeth, which has fear, blood and sleep instead.',
     folder: 'Shakespeare',
     docs: ['Hamlet', 'Macbeth', 'Othello', 'A Midsummer Night’s Dream', 'Twelfth Night', 'Much Ado About Nothing'],
     look: {
@@ -77,8 +77,8 @@ export const EXAMPLES: Example[] = [
     title: 'The four Sherlock Holmes novels',
     blurb: 'Arthur Conan Doyle, 1887–1915.',
     findings:
-      'Warm inks mark words several novels share, cool inks words only one uses. ' +
-      'Holmes stands at the center of all four; “watson” is a top word only in The Hound, where he investigates alone.',
+      'Words that several novels share are in warm colors, and words from a single novel in cool ones. ' +
+      'Holmes sits in the middle of all four. Watson’s name only makes the top words in The Hound, where he does most of the investigating on his own.',
     folder: 'SherlockHolmes',
     docs: ['A Study in Scarlet', 'The Sign of the Four', 'The Hound of the Baskervilles', 'The Valley of Fear'],
     look: {
@@ -102,11 +102,11 @@ export const EXAMPLES: Example[] = [
     id: 'fairytales',
     title: 'Fairy tales and fables',
     blurb:
-      'Six classic collections, one cloud each: German tales (Grimm), Danish (Andersen), French (Perrault), ' +
-      'Greek fables (Aesop), Middle Eastern stories (Arabian Nights) and Japanese folk tales. Bigger words are ones that collection uses more.',
+      'Six classic collections, one cloud each: Grimm (German), Andersen (Danish), Perrault (French), Aesop’s fables (Greek), ' +
+      'the Arabian Nights and Japanese folk tales. The bigger the word, the more that collection uses it.',
     findings:
-      'Bold words are shared, light words belong to one collection. ' +
-      '“King” rules everywhere but Andersen and Aesop, and Aesop’s animals share almost nothing with the rest.',
+      'Bold words appear in more than one collection, thin ones in just one. ' +
+      'There’s a “king” in every collection except Andersen and Aesop, and Aesop’s animals have almost nothing in common with the rest.',
     folder: 'FairyTales',
     docs: ['Grimm', 'Andersen', 'Perrault', 'Aesop', 'Arabian Nights', 'Japanese Fairy Tales'],
     look: {
