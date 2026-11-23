@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Makes a word storm from text files on the command line: one SVG and/or PNG
-// per cloud, all in the same frame, plus the layout as JSON.
+// per cloud, all in the same frame, an index.html showing them side by side,
+// and optionally the layout as JSON.
 //
 //   wordstorms [options] <files or folders...>       (installed, or with npx)
 //   npm run storm -- [options] <files or folders...> (from web/ in a clone)
@@ -17,6 +18,7 @@ import { DEFAULT_OPTIONS, generateStorm, type Cloud, type Doc, type StormOptions
 import { createCanvasMeasurer, fontWeight, type FontSpec } from '../src/measure/canvas.ts';
 import { drawCloud } from '../src/render/canvas.ts';
 import { cloudFileNames, cropStorm } from '../src/render/export.ts';
+import { stormToHtml } from '../src/render/html.ts';
 import { cloudToSvg } from '../src/render/svg.ts';
 import { EXAMPLES } from '../src/app/example-list.ts';
 import { FONT_LIST, LATIN, LATIN_EXT, type FontInfo } from '../src/app/font-list.ts';
@@ -39,7 +41,7 @@ Examples:
 
 Options:
   -o, --out <dir>        Where to write the files (default: ./wordstorm)
-  -f, --format <list>    svg, png and/or json, comma-separated (default: svg,png)
+  -f, --format <list>    Any of svg, png, html and json, comma-separated (default: svg,png,html)
       --separate         Lay out each cloud on its own instead of as a storm
   -w, --words <n>        Words per cloud (default: ${DEFAULT_OPTIONS.maxWords})
   -d, --distinct <n>     Favor words a document uses more than the others, 0–100 (default: ${DEFAULT_OPTIONS.distinctiveness * 100})
@@ -126,8 +128,9 @@ if (docs.length === 0) fail('No .txt or .md files found. Give some text files or
 
 // ---------- Options ----------
 
-const formats = (args.format ?? 'svg,png').split(',').map((f) => f.trim().toLowerCase());
-for (const f of formats) if (!['svg', 'png', 'json'].includes(f)) fail(`Unknown format "${f}". Use svg, png and/or json.`);
+const FORMATS = ['svg', 'png', 'html', 'json'];
+const formats = (args.format ?? 'svg,png,html').split(',').map((f) => f.trim().toLowerCase());
+for (const f of formats) if (!FORMATS.includes(f)) fail(`Unknown format "${f}". Use any of ${FORMATS.join(', ')}.`);
 
 if (args.palette && !(args.palette in PALETTES)) fail(`Unknown palette "${args.palette}". Pick one of: ${Object.keys(PALETTES).join(', ')}.`);
 if (args.mark && !(MARKS as readonly string[]).includes(args.mark)) fail(`--mark must be one of: ${MARKS.join(', ')}.`);
@@ -203,8 +206,8 @@ const out = resolve(cwd, args.out ?? 'wordstorm');
 mkdirSync(out, { recursive: true });
 const { clouds, width, height } = cropStorm(storm);
 const written: string[] = [];
+const css = formats.includes('svg') || formats.includes('html') ? embeddedCss(font) : '';
 if (formats.includes('svg')) {
-  const css = embeddedCss(font);
   cloudFileNames(storm, 'svg').forEach((name, i) => {
     writeFileSync(join(out, name), cloudToSvg(clouds[i], width, height, { font: font.spec, css, background: storm.background }));
     written.push(name);
@@ -215,6 +218,11 @@ if (formats.includes('png')) {
     writeFileSync(join(out, name), pngOf(clouds[i], width, height));
     written.push(name);
   });
+}
+if (formats.includes('html')) {
+  const title = example ? example.title : undefined;
+  writeFileSync(join(out, 'index.html'), stormToHtml({ clouds, width, height, background: storm.background }, { font: font.spec, css, title }));
+  written.push('index.html');
 }
 if (formats.includes('json')) {
   writeFileSync(join(out, 'storm.json'), JSON.stringify(storm, null, 2));
@@ -227,4 +235,5 @@ console.log(
   `${storm.clouds.length} clouds, ${shared} shared words${skipped ? `, ${skipped} words didn't fit` : ''}, ` +
     `in ${((performance.now() - started) / 1000).toFixed(1)} s`,
 );
-console.log(`Wrote ${written.length} files to ${out}`);
+console.log(`Wrote ${written.length} ${written.length === 1 ? 'file' : 'files'} to ${out}`);
+if (written.includes('index.html')) console.log(`Open ${join(out, 'index.html')} to compare the clouds.`);

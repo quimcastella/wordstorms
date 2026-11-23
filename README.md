@@ -31,7 +31,8 @@ npm install
 
 `wordstorms` makes a storm from text files and writes one SVG and one PNG per
 cloud into `./wordstorm`, all the same size so shared words line up when you
-stack them. It needs only Node.js, not a clone:
+stack them, plus an `index.html` that shows the clouds side by side (hover a
+word to find it in every cloud). It needs only Node.js, not a clone:
 
 ```bash
 # One cloud per file in a folder
@@ -50,7 +51,7 @@ directly; paths are relative to where you run it.
 | Option | What it does | Default |
 |---|---|---|
 | `-o, --out <dir>` | Where to write the files | `./wordstorm` |
-| `-f, --format <list>` | `svg`, `png` and/or `json`, comma-separated | `svg,png` |
+| `-f, --format <list>` | Any of `svg`, `png`, `html` and `json`, comma-separated | `svg,png,html` |
 | `--separate` | Lay out each cloud on its own, like an ordinary word cloud, instead of as a storm | |
 | `-w, --words <n>` | Words per cloud; common English words ("the", "and", "said") are always left out | 35 |
 | `-d, --distinct <0-100>` | Favor words a document uses more than the others, in %. Unlike tf-idf, words every document uses can still appear, so there are shared words to line up | 20 |
@@ -91,7 +92,8 @@ const svgs = storm.clouds.map((cloud) => cloudToSvg(cloud, storm.width, storm.he
 `PAPER_OPTIONS` gives the settings used in the paper
 (`generateStorm(docs, { ...PAPER_OPTIONS }, measurer)`). `cropStorm` trims the
 clouds to a shared frame for saving, `cloudFileNames` gives safe file names,
-and `drawCloud` draws a cloud on a canvas.
+`drawCloud` draws a cloud on a canvas, and `stormToHtml` makes the
+side-by-side page.
 [web/scripts/storm.ts](web/scripts/storm.ts) is a complete Node example.
 
 ## How it works

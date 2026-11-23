@@ -26,17 +26,18 @@ npx wordstorms a.txt b.txt c.txt --words 40 --distinct 30 --palette ocean --out 
 npx wordstorms --example holmes
 ```
 
-It writes one SVG and one PNG per cloud into `./wordstorm`. All the files are
-the same size, so shared words line up when you stack them, and the SVGs embed
-their font, so they look the same anywhere. Each file name becomes its cloud's
-title.
+It writes one SVG and one PNG per cloud into `./wordstorm`, plus an
+`index.html` that shows all the clouds side by side: open it in a browser and
+hover a word to find it in every cloud. All the clouds are the same size, so
+shared words line up when you stack them, and the SVGs embed their font, so
+they look the same anywhere. Each file name becomes its cloud's title.
 
 ## Options
 
 | Option | What it does | Default |
 |---|---|---|
 | `-o, --out <dir>` | Where to write the files | `./wordstorm` |
-| `-f, --format <list>` | `svg`, `png` and/or `json`, comma-separated | `svg,png` |
+| `-f, --format <list>` | Any of `svg`, `png`, `html` and `json`, comma-separated | `svg,png,html` |
 | `--separate` | Lay out each cloud on its own, like an ordinary word cloud, instead of as a storm | |
 | `-w, --words <n>` | Words per cloud; common English words ("the", "and", "said") are always left out | 35 |
 | `-d, --distinct <0-100>` | Favor words a document uses more than the others, in %. Unlike tf-idf, words every document uses can still appear, so there are shared words to line up | 20 |

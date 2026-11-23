@@ -28,14 +28,14 @@ jobs:
       - run: npm test
       - name: Command line smoke test
         run: |
-          npm run storm -- --example holmes --format svg,png,json --out out/ci-storm
-          test "$(ls out/ci-storm | wc -l)" -eq 9
+          npm run storm -- --example holmes --format svg,png,html,json --out out/ci-storm
+          test "$(ls out/ci-storm | wc -l)" -eq 10
       - name: Packaged command line smoke test
         run: |
           npm pack --pack-destination "$RUNNER_TEMP"
           cd "$RUNNER_TEMP" && npm init -y && npm install ./wordstorms-*.tgz
-          npx wordstorms --example holmes --format svg,png,json
-          test "$(ls wordstorm | wc -l)" -eq 9
+          npx wordstorms --example holmes
+          test -f wordstorm/index.html && test "$(ls wordstorm | wc -l)" -eq 9
       - run: npx vite build
       - uses: actions/upload-pages-artifact@v4
         with:
