@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Word Storm</title>
+    <meta name="description" content="Compare documents with coordinated word clouds. Drop in text files and get one cloud per document, with shared words in the same place." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23243b6b'/%3E%3Ctext x='5' y='15' font-family='sans-serif' font-weight='700' font-size='11' fill='%23ffd36e'%3EW%3C/text%3E%3Ctext x='13' y='26' font-family='sans-serif' font-weight='700' font-size='11' fill='%239fd3ff'%3ES%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <h1>Word Storm</h1>
+        <p>Compare documents with coordinated word clouds</p>
+      </div>
+      <nav>
+        <a href="#about">How it works</a>
+        <a href="https://github.com/quimcastella/wordstorms" rel="noopener">GitHub</a>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <aside class="panel" aria-label="Settings">
+        <section>
+          <h2>Documents</h2>
+          <label class="drop" id="drop">
+            <input type="file" id="files" multiple accept=".txt,.md,text/plain" />
+            <strong>Drop text files here</strong>
+            <span>or click to choose. Each file becomes one cloud.</span>
+          </label>
+          <button type="button" id="example" class="linkish">Try the 2012 US presidential debates</button>
+          <ul id="doclist" class="doclist"></ul>
+        </section>
+
+        <section>
+          <h2>Layout</h2>
+          <div class="segmented" role="radiogroup" aria-label="Layout">
+            <input type="radio" name="mode" id="mode-c" value="coordinated" checked />
+            <label for="mode-c">Word storm</label>
+            <input type="radio" name="mode" id="mode-i" value="independent" />
+            <label for="mode-i">Separate clouds</label>
+          </div>
+          <p class="hint" id="modehint"></p>
+
+          <label class="field">
+            <span>Words per cloud <output id="wordsOut">25</output></span>
+            <input type="range" id="words" min="10" max="80" step="5" value="25" />
+          </label>
+          <label class="field">
+            <span>Size words by</span>
+            <select id="weighting">
+              <option value="tf">How often they appear</option>
+              <option value="tfidf">How distinctive they are (tf-idf)</option>
+            </select>
+          </label>
+          <label class="check" id="fadeRow">
+            <input type="checkbox" id="fade" checked />
+            <span>Fade words that every document uses</span>
+          </label>
+
+          <details class="more">
+            <summary>More options</summary>
+            <label class="field">
+              <span>Ignore these words</span>
+              <input type="text" id="stop" placeholder="e.g. applause, laughter" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Cloud shape</span>
+              <select id="aspect">
+                <option value="640x480">4:3</option>
+                <option value="560x560">Square</option>
+                <option value="720x405">16:9</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Font</span>
+              <select id="font">
+                <option value='"Helvetica Neue", Helvetica, Arial, sans-serif'>Sans serif</option>
+                <option value='Georgia, "Times New Roman", serif'>Serif</option>
+                <option value='"Avenir Next Condensed", "Arial Narrow", "Roboto Condensed", sans-serif-condensed, sans-serif'>Condensed</option>
+                <option value='ui-monospace, Menlo, Consolas, monospace'>Monospace</option>
+              </select>
+            </label>
+            <div class="seedrow">
+              <label class="field">
+                <span>Random seed</span>
+                <input type="number" id="seed" value="123456" />
+              </label>
+              <button type="button" id="shuffle">Shuffle</button>
+            </div>
+          </details>
+        </section>
+      </aside>
+
+      <section class="results" aria-label="Clouds">
+        <div class="toolbar">
+          <p id="status" role="status"></p>
+          <div class="actions" id="actions" hidden>
+            <span>Download</span>
+            <button type="button" id="dlSvg">SVG</button>
+            <button type="button" id="dlPng">PNG</button>
+            <button type="button" id="dlJson">JSON</button>
+          </div>
+        </div>
+        <p id="focus" class="focus" aria-live="polite"></p>
+        <div id="grid" class="grid"></div>
+        <div id="empty" class="empty">
+          <h2>One cloud per document, laid out together</h2>
+          <p>
+            A word storm is a group of word clouds. Words that appear in several documents get the same
+            position, color and angle in every cloud, so you can compare documents at a glance: similar
+            documents look similar, and what's distinctive stands out.
+          </p>
+          <p>Add a few text files on the left, or try the example.</p>
+        </div>
+      </section>
+    </main>
+
+    <section id="about" class="about">
+      <h2>How it works</h2>
+      <ol>
+        <li><strong>Pick words.</strong> Each document's most frequent words, ignoring common English words like "the" and "and".</li>
+        <li><strong>Place shared words together.</strong> A word that appears in several documents is placed at the average of its positions, cloud by cloud, until positions settle.</li>
+        <li><strong>Refine.</strong> A force layout then pulls each shared word toward its position in similar documents, pushes overlapping words apart and keeps clouds compact.</li>
+        <li><strong>Fill in.</strong> Words unique to one document fill the space around them.</li>
+      </ol>
+      <p>
+        Everything runs in your browser; your files never leave your computer. Method from
+        Castella &amp; Sutton, <em>Word Storms: Multiples of Word Clouds for Visual Comparison of Documents</em> (WWW 2014).
+      </p>
+    </section>
+
+    <script type="module" src="/src/app/main.ts"></script>
+  </body>
+</html>

@@ -2,3 +2,7 @@
 .idea/
 WordStorm.iml
 bin
+
+# Java build output
+build/
+dist/

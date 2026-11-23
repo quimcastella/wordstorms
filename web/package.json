@@ -1,0 +1,26 @@
+{
+  "name": "wordstorm",
+  "version": "0.1.0",
+  "description": "Word storms: coordinated word clouds for comparing documents",
+  "license": "Apache-2.0",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "compare": "node scripts/compare-reference.ts"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "1.1.0",
+    "@types/node": "^22.20.5",
+    "typescript": "7.0.2",
+    "vite": "8.2.6",
+    "vitest": "5.0.5"
+  }
+}

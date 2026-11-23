@@ -1,0 +1,104 @@
+import { createCanvas } from '@napi-rs/canvas';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { generateStorm, type Storm } from '../src/core/storm.ts';
+import { createCanvasMeasurer } from '../src/measure/canvas.ts';
+
+const dir = join(__dirname, '..', '..', 'examples', 'data', 'input', 'PresidentialDebate');
+const docs = readdirSync(dir)
+  .filter((f) => f.endsWith('.txt'))
+  .sort()
+  .map((f) => ({ name: f, text: readFileSync(join(dir, f), 'utf8') }));
+const measurer = () => createCanvasMeasurer((w, h) => createCanvas(w, h), 'Helvetica');
+
+describe('generateStorm', () => {
+  const coordinated = generateStorm(docs, { mode: 'coordinated' }, measurer());
+  const independent = generateStorm(docs, { mode: 'independent' }, measurer());
+
+  it('makes one cloud per document, each with up to maxWords words', () => {
+    for (const storm of [coordinated, independent]) {
+      expect(storm.clouds.map((c) => c.name)).toEqual(docs.map((d) => d.name));
+      for (const c of storm.clouds) {
+        expect(c.words.length + c.skipped.length).toBe(25);
+        expect(c.words.length).toBeGreaterThan(20);
+      }
+    }
+  });
+
+  it('is deterministic for a given seed', () => {
+    const again = generateStorm(docs, { mode: 'coordinated' }, measurer());
+    expect(again.clouds).toEqual(coordinated.clouds);
+    const other = generateStorm(docs, { mode: 'coordinated', seed: 7 }, measurer());
+    expect(other.clouds).not.toEqual(coordinated.clouds);
+  });
+
+  it('keeps every word inside the frame', () => {
+    for (const storm of [coordinated, independent]) {
+      for (const w of storm.clouds.flatMap((c) => c.words)) {
+        expect(w.x).toBeGreaterThanOrEqual(-0.5);
+        expect(w.y).toBeGreaterThanOrEqual(-0.5);
+        expect(w.x + w.width).toBeLessThanOrEqual(storm.width + 0.5);
+        expect(w.y + w.height).toBeLessThanOrEqual(storm.height + 0.5);
+      }
+    }
+  });
+
+  it('gives a shared word the same color and angle in every cloud when coordinated', () => {
+    const seen = new Map<string, string>();
+    for (const w of coordinated.clouds.flatMap((c) => c.words)) {
+      const style = `${w.color}|${w.angle}`;
+      expect(seen.get(w.text) ?? style).toBe(style);
+      seen.set(w.text, style);
+    }
+  });
+
+  it('fades words that every cloud shares', () => {
+    const people = coordinated.clouds[0].words.find((w) => w.text === 'people')!;
+    expect(people.cloudCount).toBe(6);
+    expect(people.opacity).toBeLessThan(0.5);
+  });
+
+  it('places shared words close to each other across clouds', () => {
+    // "people" is in all six clouds; its centers should be much closer than the frame size.
+    const centers = coordinated.clouds.map((c) => {
+      const w = c.words.find((x) => x.text === 'people')!;
+      return [w.x + w.width / 2, w.y + w.height / 2];
+    });
+    const spread = Math.max(...centers.map(([x]) => x)) - Math.min(...centers.map(([x]) => x));
+    expect(spread).toBeLessThan(coordinated.width / 4);
+  });
+
+  it('never lets ink overlap in independent clouds', () => {
+    expect(inkOverlaps(independent)).toBe(0);
+  });
+
+  it('(the overlap check itself catches stacked words)', () => {
+    const w = independent.clouds[0].words[0];
+    const stacked = { ...independent, clouds: [{ name: 'x', skipped: [], words: [w, { ...w, x: w.x + 3 }] }] };
+    expect(inkOverlaps(stacked)).toBeGreaterThan(100);
+  });
+});
+
+/** Pixels (solid ink, alpha > 50%) drawn by more than one word, summed over clouds. */
+function inkOverlaps(storm: Storm): number {
+  let shared = 0;
+  const canvas = createCanvas(storm.width, storm.height);
+  const ctx = canvas.getContext('2d');
+  for (const cloud of storm.clouds) {
+    const hits = new Uint8Array(storm.width * storm.height);
+    for (const w of cloud.words) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, storm.width, storm.height);
+      ctx.translate(w.x + w.originX, w.y + w.originY);
+      ctx.rotate((w.angle * Math.PI) / 180);
+      ctx.font = `${w.fontSize}px Helvetica`;
+      ctx.fillText(w.text, 0, 0);
+      const { data } = ctx.getImageData(0, 0, storm.width, storm.height);
+      for (let i = 0; i < hits.length; i++) {
+        if (data[i * 4 + 3] > 128 && hits[i]++ === 1) shared++;
+      }
+    }
+  }
+  return shared;
+}
