@@ -2,6 +2,13 @@
 
 Changes to the `wordstorms` npm package: the command line and the library.
 
+## 0.2.1 (2026-11-24)
+
+### Changed
+
+- Package metadata only: a clearer description and more keywords, so the
+  package is easier to find on npm. No code changes.
+
 ## 0.2.0 (2026-11-24)
 
 ### Added
