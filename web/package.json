@@ -1,7 +1,7 @@
 {
   "name": "wordstorms",
   "version": "0.2.0",
-  "description": "Word storms: coordinated word clouds for comparing documents",
+  "description": "Word clouds that line up, so you can compare documents: coordinated word clouds as a command line tool, a TypeScript library and a web app",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -10,8 +10,20 @@
   "homepage": "https://wordstorms.org",
   "keywords": [
     "word cloud",
+    "wordcloud",
+    "word-cloud",
+    "tag cloud",
     "word storm",
+    "compare documents",
+    "text comparison",
     "text visualization",
+    "text analysis",
+    "data visualization",
+    "visualization",
+    "nlp",
+    "tf-idf",
+    "svg",
+    "canvas",
     "cli",
     "library"
   ],

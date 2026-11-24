@@ -1,10 +1,11 @@
 // Renders every built-in example, in its own look, to PNGs in out/examples/,
 // for checking looks and seeds, plus comparison.png: three fairy-tale
 // collections as separate clouds above the same three in the storm. The
-// README's images in docs/images/ are copied from here.
+// README's images in docs/images/ are copied from here. Also writes the site's
+// share card and icons to public/.
 //
 //   npm run render-examples
-import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
+import { createCanvas, GlobalFonts, type SKRSContext2D } from '@napi-rs/canvas';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -129,4 +130,86 @@ function drawRows(rows: { title: string; clouds: Cloud[] }[], size: { width: num
     ),
   );
   console.log(`comparison   → ${file}`);
+}
+
+// The site's icons and share card, written straight to public/ (served at the site root).
+{
+  const publicDir = join(here, '..', 'public');
+  mkdirSync(publicDir, { recursive: true });
+  for (const weight of [400, 700]) {
+    GlobalFonts.registerFromPath(join(here, '..', 'node_modules', '@fontsource', 'inter', 'files', `inter-latin-${weight}-normal.woff2`), 'Card Inter');
+  }
+
+  /** The logo: three overlapping rounded squares on a 32-unit grid. */
+  const drawLogo = (ctx: SKRSContext2D, x: number, y: number, size: number) => {
+    const u = size / 32;
+    const squares: [number, number, number, number, string, number][] = [
+      [2, 2, 17, 5, '#2a6f97', 1],
+      [13, 9, 17, 5, '#d62839', 0.85],
+      [6, 16, 13, 4, '#e07a1f', 0.9],
+    ];
+    for (const [sx, sy, side, r, color, alpha] of squares) {
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.roundRect(x + sx * u, y + sy * u, side * u, side * u, r * u);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  };
+
+  // Square icons on the site's background: iOS and Android don't keep transparency.
+  for (const [name, size] of [['apple-touch-icon.png', 180], ['icon-192.png', 192], ['icon-512.png', 512]] as const) {
+    const canvas = createCanvas(size, size);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#f5f4f0';
+    ctx.fillRect(0, 0, size, size);
+    const pad = size * 0.14;
+    drawLogo(ctx, pad, pad, size - 2 * pad);
+    writeFileSync(join(publicDir, name), canvas.toBuffer('image/png'));
+  }
+
+  // 1200×630 share card: the name and pitch over three fairy-tale clouds from the storm.
+  const ex = EXAMPLES.find((e) => e.id === 'fairytales')!;
+  const docs = ex.docs.map((name) => ({ name, text: readFileSync(join(inputRoot, ex.folder, `${name}.txt`), 'utf8') }));
+  const font = FONT_LIST.find((f) => f.id === ex.look.font)!.spec;
+  const measurer = createCanvasMeasurer((w, h) => createCanvas(w, h), font);
+  const storm = generateStorm(docs, { ...ex.look.options, extraStopwords: ex.look.ignore }, measurer);
+  const width = 1200;
+  const height = 630;
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f5f4f0';
+  ctx.fillRect(0, 0, width, height);
+  drawLogo(ctx, 48, 40, 64);
+  ctx.fillStyle = '#191c22';
+  ctx.font = '700 50px "Card Inter"';
+  ctx.fillText('Word Storms', 132, 88);
+  ctx.fillStyle = '#4b5563';
+  ctx.font = '400 28px "Card Inter"';
+  ctx.fillText('Word clouds that line up, so you can compare documents', 48, 152);
+  ctx.textAlign = 'right';
+  ctx.font = '700 26px "Card Inter"';
+  ctx.fillStyle = '#2f4ccf';
+  ctx.fillText('wordstorms.org', width - 48, 84);
+  ctx.textAlign = 'left';
+  const shown = [0, 2, 3]; // Grimm, Perrault and Aesop: two alike, one that stands apart
+  const gap = 24;
+  const side = (width - 2 * 48 - (shown.length - 1) * gap) / shown.length;
+  const scale = side / storm.width;
+  const top = 184;
+  shown.forEach((index, i) => {
+    const cloud = storm.clouds[index];
+    const ox = 48 + i * (side + gap);
+    ctx.fillStyle = storm.background;
+    ctx.beginPath();
+    ctx.roundRect(ox, top, side, storm.height * scale, 12);
+    ctx.fill();
+    drawCloud(ctx, cloud, font, { x: ox, y: top, scale });
+    ctx.fillStyle = '#4b5563';
+    ctx.font = '400 20px "Card Inter"';
+    ctx.fillText(cloud.name, ox + 4, top + storm.height * scale + 28);
+  });
+  writeFileSync(join(publicDir, 'social-card.png'), canvas.toBuffer('image/png'));
+  console.log(`icons, card   → ${publicDir}`);
 }
