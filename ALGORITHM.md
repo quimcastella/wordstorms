@@ -245,15 +245,49 @@ spot across clouds.
 ## Randomness
 
 All randomness comes from one seeded generator (mulberry32, with Box–Muller
-for Gaussians), so the same seed and settings always give the same storm.
+for Gaussians). The same documents, options (seed included), font and text
+measurer give the same storm. Positions depend on measured glyph sizes, so a
+different font, or the same font drawn by a different canvas (browser vs.
+Node.js, another operating system), can give a different layout from the same
+seed, and so can a different version of this library. `storm.options` and the
+saved JSON (`stormToJson`) record the version, font and every option, so a
+figure can be made again.
+
+## Limitations
+
+A word storm is for exploring and comparing documents by eye. It is not an
+exact measure of how similar they are:
+
+- **Sizes are relative within a cloud.** Weights are normalized per cloud
+  (section 1, step 11), so the same font size in two clouds doesn't mean the same
+  count. Compare sizes within a cloud; use the counts themselves to compare
+  across documents.
+- **Shared means shared among the top words.** A word is shared when it makes
+  two or more clouds' top `maxWords`. A word every document uses can be in
+  only one cloud, and a word missing from a cloud may still be in that
+  document. Thin (`markShared: 'weight'`) means "in this cloud only", not "in
+  this document only".
+- **Positions are approximate.** Shared words are pulled toward common spots
+  but also pushed apart to avoid overlaps, so copies can be some distance
+  apart. `stats.sharedOffset` says how far.
+- **Every document affects every cloud.** Adding or removing a document
+  changes which words are shared, the keyness weights and the layout of all
+  the clouds. Document order matters too, because the iterative phase (4a)
+  places clouds one after another.
+- **Word choice is a heuristic.** Stop lists, plural merging (`new` and `news`
+  are merged too) and keyness all shape what you see. For full control, give
+  each document its own word weights (`{name, words}`).
+- **A seed reproduces a layout only with the same font, measurer and
+  version** (see Randomness).
 
 ## Differences from the paper's implementation
 
 The paper's figures were made with an earlier Java implementation, built on
 WordCram and Processing. It is no longer in this repository but is kept at the
-`java-original` tag. `PAPER_OPTIONS` sets this implementation to the paper's
-settings: 25 words, plain counts, the shorter English stop list, random HSB
-colors and fading of common words. Layouts match the original in character, not
+`java-original` tag. `PAPER_OPTIONS` uses the paper's configuration in this
+implementation; it doesn't reproduce the original program. The configuration
+is 25 words, plain counts, the shorter English stop list, random HSB colors
+and fading of common words. Layouts match the original in character, not
 pixel for pixel, because the random number generators differ. Beyond that:
 
 - **Word choice:** the original stop list is the shorter `english` one; it

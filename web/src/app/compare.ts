@@ -3,25 +3,12 @@
 // way ordinary word-cloud tools would. Laid out once the section is near the
 // screen.
 import type { Cloud, StormOptions } from '../core/storm.ts';
+import { SEPARATE_LOOKS as SEPARATE } from './example-list.ts';
 import { cloudToSvg } from '../render/svg.ts';
 import { computeStorm } from './compute.ts';
 import { exampleById, loadExampleDocs } from './examples.ts';
 import { fontById, type CloudFont } from './fonts.ts';
 
-/**
- * Per separate cloud: its own seed, share of vertical words and size scale. An ordinary cloud
- * always puts its biggest word near the middle, so with one setting for all, "little" sat in
- * the same spot in Grimm, Andersen and Perrault. These were searched so shared words land in
- * different places and turn differently than in the storm and in each other.
- */
-const SEPARATE: Pick<StormOptions, 'seed' | 'verticalShare' | 'sizeExponent'>[] = [
-  { seed: 191056, verticalShare: 1 / 2, sizeExponent: 1.2 },
-  { seed: 485841, verticalShare: 3 / 7, sizeExponent: 0.9 },
-  { seed: 646003, verticalShare: 1 / 7, sizeExponent: 1.3 },
-  { seed: 671542, verticalShare: 5 / 14, sizeExponent: 1 },
-  { seed: 784190, verticalShare: 1 / 2, sizeExponent: 1.1 },
-  { seed: 675106, verticalShare: 2 / 7, sizeExponent: 0.8 },
-];
 
 interface Drawn {
   cloud: Cloud;

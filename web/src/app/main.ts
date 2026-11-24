@@ -79,7 +79,7 @@ const VERTICAL_STEPS = 14;
 const MARK_LABELS = { none: 'None', weight: 'Weight', warmth: 'Warm/cool' };
 const MARK_HINTS = {
   none: 'Each word gets a random color from the palette, like in the original.',
-  weight: 'Words that only one document uses are drawn thin, and shared words stay bold.',
+  weight: 'Words in only one cloud are drawn thin, and words in several stay bold.',
   warmth: 'Shared words get warm colors and the rest get cool ones.',
 };
 const LANGUAGE_HINTS: Record<Language, string> = {
