@@ -49,7 +49,7 @@ export const EXAMPLES: Example[] = [
     blurb: 'Three tragedies and three comedies, dialogue only.',
     findings:
       'A word has the same color and spot in every play. ' +
-      '“Heart” makes the cloud of all six plays and “heaven” only the tragedies’. “Love” is in every cloud except Macbeth’s, which has fear, blood and sleep instead.',
+      '“Heart” is a top word in all six plays, and “heaven” only in the tragedies. “Love” is a top word in every play but Macbeth, where fear, blood and sleep take its place.',
     folder: 'Shakespeare',
     docs: ['Hamlet', 'Macbeth', 'Othello', 'A Midsummer Night’s Dream', 'Twelfth Night', 'Much Ado About Nothing'],
     look: {
