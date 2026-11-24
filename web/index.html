@@ -27,6 +27,13 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
 
+    <!-- Plausible page views on our own instance, no cookies. The site is the page's hostname, wordstorms.org. -->
+    <link rel="dns-prefetch" href="//stats.afeli.net" />
+    <script defer id="ws-afeli-analytics-js" src="https://stats.afeli.net/js/script.js"></script>
+    <script>
+      window.plausible = window.plausible || function () { (window.plausible.q = window.plausible.q || []).push(arguments) }
+    </script>
+
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -375,6 +382,7 @@
         The fonts are open-source <a href="https://fonts.google.com" rel="noopener">Google Fonts</a>, served with
         <a href="https://fontsource.org" rel="noopener">Fontsource</a>. The example texts are in the public domain and come from
         <a href="https://www.gutenberg.org" rel="noopener">Project Gutenberg</a>. The English stop words come from Jonathan Feinberg’s cue.language.
+        The site counts visits with <a href="https://plausible.io" rel="noopener">Plausible</a>, without cookies; it never sees your documents.
       </p>
     </footer>
 

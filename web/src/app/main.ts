@@ -12,6 +12,7 @@ import { setupComparison } from './compare.ts';
 import { computeStorm, pageFont, type Job } from './compute.ts';
 import { EXAMPLES, exampleById, loadExampleDocs, type Example, type ExampleLook } from './examples.ts';
 import { embeddedFontCss, fontById, FONTS, type CloudFont } from './fonts.ts';
+import { documentsBucket, secondsBucket, track, wordsBucket } from './track.ts';
 import './style.css';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -111,6 +112,8 @@ let current: Job | null = null;
 let job = 0;
 let rerunTimer = 0;
 let pinned: string | null = null;
+/** The documents of the last storm tracked as made, so changing a setting doesn't count as a new one. */
+let trackedDocs: TextDoc[] | null = null;
 
 // ---------- Pickers ----------
 
@@ -218,12 +221,14 @@ async function showExample(ex: Example) {
     docs = loaded;
     docsChanged();
   } catch (err) {
+    track('Error', { kind: 'example' });
     setStatus(`Couldn’t load the example: ${err instanceof Error ? err.message : String(err)}`, 'error');
   }
 }
 
 /** Opens an example under Make your own, with its documents and look, to change or download. */
 async function tweakExample(ex: Example) {
+  track('Example Tweak', { example: ex.id });
   example = ex;
   const loaded = await loadExampleDocs(ex);
   applyLook(ex.look);
@@ -316,7 +321,10 @@ function buildExampleLists() {
   ui.examples.replaceChildren(
     ...EXAMPLES.map((ex) => {
       const b = exampleCard(ex);
-      b.onclick = () => showExample(ex);
+      b.onclick = () => {
+        track('Example View', { example: ex.id, how: 'picked' });
+        showExample(ex);
+      };
       return b;
     }),
   );
@@ -332,12 +340,14 @@ function buildExampleLists() {
 
 // ---------- Documents ----------
 
-async function addFiles(list: FileList | File[]) {
+async function addFiles(list: FileList | File[], source: 'files' | 'drop') {
   const files = [...list].filter((f) => /\.(txt|md|text)$/i.test(f.name) || f.type.startsWith('text/'));
   if (!files.length) {
+    track('Error', { kind: 'not-text' });
     setStatus('Those don’t look like text files. Use .txt files, one per document.', 'error');
     return;
   }
+  track('Documents Add', { source, documents: documentsBucket(files.length) });
   addDocs(await Promise.all(files.map(async (f) => ({ name: f.name.replace(/\.[^.]+$/, ''), text: await f.text() }))));
 }
 
@@ -352,6 +362,7 @@ function addPasted() {
   const taken = new Set((createFrom ? [] : docs).map((d) => d.name));
   let name = ui.pasteName.value.trim();
   if (!name) for (let n = taken.size + 1; !name || taken.has(name); n++) name = `Text ${n}`;
+  track('Documents Add', { source: 'paste', documents: '1' });
   addDocs([{ name, text }]);
   ui.pasteName.value = '';
   ui.pasteText.value = '';
@@ -489,11 +500,24 @@ function run() {
       stormFont = font;
       ui.grid.removeAttribute('aria-busy');
       render();
-      setStatus(summary(s, performance.now() - started));
+      const ms = performance.now() - started;
+      setStatus(summary(s, ms));
+      if (view === 'create' && docs !== trackedDocs) {
+        trackedDocs = docs;
+        track('Storm Made', {
+          from: createFrom?.id ?? 'own',
+          documents: documentsBucket(docs.length),
+          words: wordsBucket(docs.reduce((n, d) => n + (d.text.match(/\S+/g)?.length ?? 0), 0)),
+          language: ui.language.value,
+          mode: selected('mode'),
+          seconds: secondsBucket(ms),
+        });
+      }
     },
     (err) => {
       if (id !== job) return;
       ui.grid.removeAttribute('aria-busy');
+      track('Error', { kind: 'storm' });
       setStatus(`Something went wrong: ${err instanceof Error ? err.message : String(err)}`, 'error');
     },
   );
@@ -602,6 +626,7 @@ ui.grid.addEventListener('pointerleave', () => {
 ui.grid.addEventListener('click', (e) => {
   const word = wordAt(e);
   pinned = word && word !== pinned ? word : null;
+  if (pinned) track('Word Pin');
   focusWord(pinned ?? word);
 });
 ui.unpin.onclick = () => {
@@ -650,11 +675,16 @@ async function svgToPng(svg: string, scale = 2): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
+function trackDownload(format: 'svg' | 'png' | 'json', s: Storm) {
+  track('Download', { format, from: createFrom?.id ?? 'own', documents: documentsBucket(s.clouds.length) });
+}
+
 async function withBusy(button: HTMLButtonElement, task: () => Promise<void>) {
   button.disabled = true;
   try {
     await task();
   } catch (err) {
+    track('Error', { kind: 'download' });
     setStatus(`Download failed: ${err instanceof Error ? err.message : String(err)}`, 'error');
   } finally {
     button.disabled = false;
@@ -669,6 +699,7 @@ ui.dlSvg.onclick = () =>
     const names = cloudFileNames(s, 'svg');
     const files: Zippable = Object.fromEntries(svgs.map((svg, i) => [names[i], strToU8(svg)]));
     download(new Blob([zipSync(files, { level: 6 })], { type: 'application/zip' }), zipName('svg'));
+    trackDownload('svg', s);
   });
 ui.dlPng.onclick = () =>
   withBusy(ui.dlPng, async () => {
@@ -680,13 +711,16 @@ ui.dlPng.onclick = () =>
     // PNGs are already compressed; store them as they are.
     const files: Zippable = Object.fromEntries(pngs.map((png, i) => [names[i], [png, { level: 0 }]]));
     download(new Blob([zipSync(files)], { type: 'application/zip' }), zipName('png'));
+    trackDownload('png', s);
   });
-ui.dlJson.onclick = () =>
-  storm &&
+ui.dlJson.onclick = () => {
+  if (!storm) return;
   download(
     new Blob([stormToJson(storm, { font: { id: stormFont.id, ...stormFont.spec } })], { type: 'application/json' }),
     `${createFrom?.id ?? 'wordstorm'}.json`,
   );
+  trackDownload('json', storm);
+};
 
 // ---------- Wiring ----------
 
@@ -710,7 +744,7 @@ window.addEventListener('hashchange', () => {
 });
 
 ui.files.addEventListener('change', () => {
-  if (ui.files.files) addFiles(ui.files.files);
+  if (ui.files.files) addFiles(ui.files.files, 'files');
   ui.files.value = '';
 });
 for (const target of [ui.drop, $('bigdrop')]) {
@@ -728,7 +762,7 @@ for (const target of [ui.drop, $('bigdrop')]) {
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('drop', (e) => {
   e.preventDefault();
-  if (e.dataTransfer?.files.length) addFiles(e.dataTransfer.files);
+  if (e.dataTransfer?.files.length) addFiles(e.dataTransfer.files, 'drop');
 });
 
 ui.clear.onclick = () => {
@@ -737,6 +771,7 @@ ui.clear.onclick = () => {
   docsChanged();
 };
 ui.regen.onclick = () => {
+  track('Setting Change', { setting: 'new-layout' });
   ui.seed.value = String(Math.floor(Math.random() * 1e6));
   clearTimeout(rerunTimer);
   run();
@@ -754,6 +789,7 @@ const BIBTEX = `@inproceedings{castella2014wordstorms,
 
 ui.copyCite.onclick = async () => {
   await navigator.clipboard.writeText(BIBTEX);
+  track('Copy BibTeX');
   ui.copyCite.textContent = 'Copied';
   setTimeout(() => (ui.copyCite.textContent = 'Copy BibTeX'), 1500);
 };
@@ -763,6 +799,21 @@ buildExampleLists();
 document
   .querySelectorAll('input[name=mode], input[name=font], input[name=palette], input[name=markShared]')
   .forEach((r) => r.addEventListener('change', optionsChanged));
+// Which settings people change, on release for sliders. The ignore list and layout number send only their name.
+const NAMED_CHOICES = new Set(['mode', 'font', 'palette', 'markShared', 'language', 'aspect']);
+for (const el of controlEls()) {
+  el.addEventListener('change', () => {
+    const setting = el.name || el.id;
+    track('Setting Change', NAMED_CHOICES.has(setting) ? { setting, value: el.value } : { setting });
+  });
+}
+// Links off the site (GitHub, the paper, npm), by middle click too.
+for (const type of ['click', 'auxclick']) {
+  document.addEventListener(type, (e) => {
+    const a = (e.target as Element).closest?.('a[href]') as HTMLAnchorElement | null;
+    if (a && a.host !== location.host && (e as MouseEvent).button <= 1) track('Outbound Link: Click', { url: a.href });
+  });
+}
 
 syncControls();
 setupComparison($('cmpStorm'), $('cmpSeparate'), $('cmpStatus'));
@@ -770,4 +821,7 @@ setupComparison($('cmpStorm'), $('cmpSeparate'), $('cmpStatus'));
 example = exampleById(new URLSearchParams(location.search).get('example')) ?? DEFAULT_EXAMPLE;
 view = 'examples';
 if (location.hash === '#create') setView('create');
-else setView('examples');
+else {
+  setView('examples');
+  track('Example View', { example: example.id, how: 'landed' });
+}
