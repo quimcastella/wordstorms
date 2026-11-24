@@ -3,7 +3,7 @@ import { hsbToHex } from './color.ts';
 import { boxMask, type Angle, type Glyph, type GlyphMeasurer, type Mask } from './glyph.ts';
 import { PALETTES, type Palette, type PaletteName } from './palettes.ts';
 import { createRng, type Rng } from './random.ts';
-import type { StopwordLanguage } from './stopwords.ts';
+import { STOPWORDS, type StopwordLanguage } from './stopwords.ts';
 import { countWords, normalizeWeights, sortCounts, weighCounts, type TextCase } from './text.ts';
 
 export interface Doc {
@@ -144,6 +144,71 @@ export interface Storm {
 export type Progress = (message: string) => void;
 
 const MAX_ATTEMPTS = 5000;
+/**
+ * Placement passes shrink every word by 0.9 when one doesn't fit. Below this
+ * factor they stop shrinking and leave out (skip) words that still don't fit,
+ * so a storm that can't fit ends instead of looping forever.
+ */
+const MIN_SIZE_FACTOR = 0.1;
+/** Largest cloud side, in px: the layout keeps a bitmap a few times this size. */
+export const MAX_SIZE = 16384;
+
+/** Every `StormOptions` value, checked; throws a RangeError or TypeError naming the first bad one. */
+export function resolveOptions(options: Partial<StormOptions> = {}): StormOptions {
+  const opts: StormOptions = { ...DEFAULT_OPTIONS };
+  for (const [key, value] of Object.entries(options)) {
+    if (value !== undefined) (opts as unknown as Record<string, unknown>)[key] = value;
+  }
+  const bad = (name: keyof StormOptions, expected: string): never => {
+    throw new RangeError(`Invalid option ${name}: expected ${expected}, got ${JSON.stringify(opts[name])}.`);
+  };
+  const number = (name: keyof StormOptions, min: number, max: number, integer = false) => {
+    const v = opts[name];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max || (integer && !Number.isInteger(v))) {
+      bad(name, `${integer ? 'an integer' : 'a number'} from ${min} to ${max}`);
+    }
+  };
+  const oneOf = (name: keyof StormOptions, values: readonly unknown[]) => {
+    if (!values.includes(opts[name])) bad(name, `one of ${values.map((v) => JSON.stringify(v)).join(', ')}`);
+  };
+  const boolean = (name: keyof StormOptions) => {
+    if (typeof opts[name] !== 'boolean') bad(name, 'true or false');
+  };
+
+  oneOf('mode', ['coordinated', 'independent']);
+  number('maxWords', 1, 10000, true);
+  number('width', 1, MAX_SIZE);
+  number('height', 1, MAX_SIZE);
+  number('minFontSize', 0.1, 10000);
+  number('maxFontSize', opts.minFontSize, 10000);
+  number('seed', -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+  oneOf('textCase', ['lower', 'upper', 'asis']);
+  oneOf('stopwords', Object.keys(STOPWORDS));
+  if (!Array.isArray(opts.extraStopwords) || !opts.extraStopwords.every((w) => typeof w === 'string')) {
+    bad('extraStopwords', 'an array of strings');
+  }
+  boolean('excludeNumbers');
+  oneOf('weighting', ['tf', 'tfidf']);
+  number('distinctiveness', 0, 1);
+  number('sizeExponent', 0.01, 10);
+  number('verticalShare', 0, 1);
+  oneOf('markShared', ['none', 'weight', 'warmth']);
+  boolean('fadeCommonWords');
+  oneOf('palette', Object.keys(PALETTES));
+  number('tolerance', -1, Number.MAX_SAFE_INTEGER);
+  number('maxIterations', 1, 1000, true);
+  number('maxForceIterations', 1, 10_000_000, true);
+  return opts;
+}
+
+function checkDocs(docs: Doc[]): void {
+  if (!Array.isArray(docs)) throw new TypeError('generateStorm expects an array of documents.');
+  docs.forEach((d, i) => {
+    if (!d || typeof d.name !== 'string' || typeof d.text !== 'string') {
+      throw new TypeError(`Document ${i} must be an object with a string name and text.`);
+    }
+  });
+}
 
 /** One word across the storm: its copies in every cloud that kept it. */
 interface Entry {
@@ -181,7 +246,8 @@ export function generateStorm(
   measurer: GlyphMeasurer,
   onProgress: Progress = () => {},
 ): Storm {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
+  checkDocs(docs);
+  const opts = resolveOptions(options);
   const start = Date.now();
   const rng = createRng(opts.seed);
   const coordinated = opts.mode === 'coordinated';
@@ -197,10 +263,15 @@ export function generateStorm(
     // As in the original, the coordinated layout happens on a half-size
     // field with full-size fonts, and the result is scaled to fit at the end.
     const field = { width: opts.width / 2, height: opts.height / 2 };
-    const shared = clouds.map((ws) => ws.filter((w) => w.entry.words.length > 1));
     const unique = clouds.map((ws) => ws.filter((w) => w.entry.words.length === 1));
     onProgress('Placing shared words');
-    passes = layout.iterative(shared, field, rng);
+    passes = layout.iterative(
+      clouds.map((ws) => ws.filter((w) => w.entry.words.length > 1)),
+      field,
+      rng,
+    );
+    // Shared words that didn't fit even at the smallest size sit out the rest.
+    const shared = clouds.map((ws) => ws.filter((w) => w.entry.words.length > 1 && w.placed));
     onProgress('Refining layout');
     forceIterations = layout.force(shared, clouds, field, onProgress);
     onProgress('Placing unique words');
@@ -418,6 +489,7 @@ class Layout {
       let notConverged = 0;
       for (const ws of shared) {
         for (const w of ws) {
+          if (!w.placed) continue;
           const avg = average(w.entry)!;
           if (Math.hypot(w.x - avg.x, w.y - avg.y) > tol) notConverged++;
         }
@@ -427,7 +499,10 @@ class Layout {
     return passes;
   }
 
-  /** One placement pass over every cloud; restarts smaller if any word doesn't fit. */
+  /**
+   * One placement pass over every cloud; restarts smaller if any word doesn't fit.
+   * Once words are at `MIN_SIZE_FACTOR`, words that don't fit are left unplaced instead.
+   */
   private pass(
     clouds: WordState[][],
     field: Field,
@@ -437,22 +512,24 @@ class Layout {
     restart: for (;;) {
       for (const ws of clouds) {
         const board = new Board(field.width, field.height);
-        const found: [WordState, { x: number; y: number }][] = [];
+        const found: [WordState, { x: number; y: number } | null][] = [];
         for (const w of ws) {
           const g = this.glyph(w);
           const mask = collision === 'box' ? this.boxMaskFor(g) : g.mask;
           const p = spiralPlace(desired(w, g), g, mask, board, field);
-          if (!p) {
+          if (!p && this.sizeFactor * 0.9 >= MIN_SIZE_FACTOR) {
             this.sizeFactor *= 0.9;
             continue restart;
           }
-          board.add(mask, p.x, p.y);
+          if (p) board.add(mask, p.x, p.y);
           found.push([w, p]);
         }
         for (const [w, p] of found) {
-          w.x = p.x;
-          w.y = p.y;
-          w.placed = true;
+          w.placed = p !== null;
+          if (p) {
+            w.x = p.x;
+            w.y = p.y;
+          }
         }
       }
       return;
@@ -506,7 +583,7 @@ class Layout {
           let sy = 0;
           if (sameEps > 0.001) {
             for (const other of w.entry.words) {
-              if (other.cloud === c) continue;
+              if (other.cloud === c || !other.placed) continue;
               const k = 1e-6 * S[other.cloud][c] * sameEps;
               sx -= k * (w.x - other.x);
               sy -= k * (w.y - other.y);

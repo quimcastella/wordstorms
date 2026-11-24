@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PALETTES } from '../src/core/palettes.ts';
-import { generateStorm, type Storm } from '../src/core/storm.ts';
+import { DEFAULT_OPTIONS, generateStorm, resolveOptions, type Storm } from '../src/core/storm.ts';
 import { createCanvasMeasurer } from '../src/measure/canvas.ts';
 
 const dir = join(__dirname, '..', '..', 'examples', 'Shakespeare');
@@ -185,5 +185,55 @@ describe('generateStorm edge cases', () => {
     expect(texts(1)).toEqual(['mountain', 'river', 'stone']);
     expect(storm.clouds[2].words).toEqual([]);
     expect(storm.clouds[3].words).toEqual([]);
+  });
+});
+
+describe('resolveOptions', () => {
+  it('fills in defaults and ignores undefined values', () => {
+    expect(resolveOptions({ maxWords: 10, seed: undefined })).toEqual({ ...DEFAULT_OPTIONS, maxWords: 10 });
+  });
+
+  it.each([
+    [{ width: 0 }, /width/],
+    [{ height: -5 }, /height/],
+    [{ width: Number.NaN }, /width/],
+    [{ maxWords: 2.5 }, /maxWords: expected an integer/],
+    [{ maxWords: 0 }, /maxWords/],
+    [{ minFontSize: 30, maxFontSize: 20 }, /maxFontSize/],
+    [{ distinctiveness: 2 }, /distinctiveness/],
+    [{ verticalShare: -0.1 }, /verticalShare/],
+    [{ sizeExponent: 0 }, /sizeExponent/],
+    [{ mode: 'grid' }, /mode: expected one of "coordinated", "independent"/],
+    [{ palette: 'neon' }, /palette/],
+    [{ stopwords: 'klingon' }, /stopwords/],
+    [{ extraStopwords: 'the' }, /extraStopwords/],
+    [{ maxIterations: 0 }, /maxIterations/],
+  ])('rejects %j', (bad, message) => {
+    expect(() => resolveOptions(bad as never)).toThrow(message);
+  });
+});
+
+describe('generateStorm with too little room', () => {
+  const docs = [
+    { name: 'a', text: 'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda omicron sigma omega' },
+    { name: 'b', text: 'alpha beta gamma delta upsilon phi chi psi rho tau pi nu xi mu' },
+  ];
+
+  it.each(['coordinated', 'independent'] as const)('ends in %s mode and reports what did not fit', (mode) => {
+    const storm = generateStorm(docs, { mode, width: 4, height: 4 }, measurer());
+    expect(storm.stats.shrink).toBeGreaterThanOrEqual(0.1);
+    for (const c of storm.clouds) {
+      expect(c.words.length + c.skipped.length).toBe(14);
+      expect(c.skipped.length).toBeGreaterThan(0);
+      for (const w of c.words) for (const v of [w.x, w.y, w.width, w.height]) expect(Number.isFinite(v)).toBe(true);
+    }
+  });
+
+  it('rejects documents without text', () => {
+    expect(() => generateStorm([{ name: 'a' } as never], {}, measurer())).toThrow(/Document 0/);
+  });
+
+  it('accepts no documents', () => {
+    expect(generateStorm([], {}, measurer()).clouds).toEqual([]);
   });
 });

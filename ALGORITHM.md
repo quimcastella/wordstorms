@@ -15,7 +15,9 @@ one used for the paper.
   `width × height` px, so a position means the same thing in every cloud.
 
 Defaults: 35 words per cloud, 640×480 px clouds, font sizes 8–65 px, seed
-123456. [`StormOptions`](web/src/core/storm.ts) lists every option.
+123456. [`StormOptions`](web/src/core/storm.ts) lists every option;
+`generateStorm` checks them all first (`resolveOptions`) and throws on a bad
+one, such as a zero width or a fractional word count.
 
 ## 1. Choosing the words
 
@@ -125,7 +127,9 @@ Gaussian clump with σ = 0.2 instead of 0.4). After a cloud is done, its
 positions become visible to the clouds after it.
 
 If any word in any cloud fails to place, every size is multiplied by 0.9 and
-the pass starts over.
+the pass starts over. Sizes stop shrinking at 10% of the original: from there
+on, a word that still doesn't fit is left out of that pass (and of the rest of
+the layout) and reported as skipped, so the layout always ends.
 
 A word has **converged** when it is within `tolerance` px (default 50) of its
 average position. Passes repeat until every word has converged, up to
@@ -191,7 +195,7 @@ as skipped.
 
 Each cloud is laid out on its own: every word, in descending weight, goes
 through the spiral search from a Gaussian clump, with shape collision and the
-field-bounds check, on the full-size field. Nothing is shared between clouds,
+field-bounds check, on the full-size field. Shrinking and skipping work as in 4a. Nothing is shared between clouds,
 including colors and angles.
 
 ## 6. Fitting the result
