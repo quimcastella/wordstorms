@@ -14,7 +14,7 @@ import { basename, dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { PALETTES, type PaletteName } from '../src/core/palettes.ts';
-import { DEFAULT_OPTIONS, generateStorm, type Cloud, type Doc, type StormOptions } from '../src/core/storm.ts';
+import { DEFAULT_OPTIONS, generateStorm, MAX_SIZE, type Cloud, type Doc, type Storm, type StormOptions } from '../src/core/storm.ts';
 import { createCanvasMeasurer, fontWeight, type FontSpec } from '../src/measure/canvas.ts';
 import { drawCloud } from '../src/render/canvas.ts';
 import { cloudFileNames, cropStorm } from '../src/render/export.ts';
@@ -27,6 +27,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 // `npm run` starts scripts in web/; INIT_CWD is where the user ran it from.
 const cwd = process.env.INIT_CWD ?? process.cwd();
 const MARKS = ['none', 'weight', 'warmth'] as const;
+// package.json sits one level up both from scripts/ and from the bundled dist-cli/.
+const VERSION = (JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf8')) as { version: string }).version;
 
 const HELP = `Make a word storm from text files: one cloud per file.
 
@@ -45,7 +47,7 @@ Options:
       --separate         Lay out each cloud on its own instead of as a storm
   -w, --words <n>        Words per cloud (default: ${DEFAULT_OPTIONS.maxWords})
   -d, --distinct <n>     Favor words a document uses more than the others, 0–100 (default: ${DEFAULT_OPTIONS.distinctiveness * 100})
-      --contrast <n>     Size differences, 0.5–1.5: 1 is the original scale, higher is more dramatic (default: 1)
+      --contrast <n>     Size differences, 0.1–3: 1 is the original scale, higher is more dramatic (default: 1)
       --vertical <0-1>   Share of vertical words (default: 0.29)
       --mark <how>       Set shared words apart: ${MARKS.join(', ')} (default: none)
   -p, --palette <name>   ${Object.keys(PALETTES).join(', ')} (default: ${DEFAULT_OPTIONS.palette})
@@ -53,7 +55,8 @@ Options:
       --size <WxH>       Cloud size in pixels (default: ${DEFAULT_OPTIONS.width}x${DEFAULT_OPTIONS.height})
       --ignore <words>   Extra words to leave out, comma-separated
   -s, --seed <n>         Layout number; the same number gives the same layout (default: ${DEFAULT_OPTIONS.seed})
-      --example <id>     Use a built-in example's documents and look; other options override it
+      --example <id>     Use a built-in example's documents and look instead of files; other options override it
+  -v, --version          Show the version
   -h, --help             Show this help
 
 Folders are read for .txt and .md files. Each file name becomes its cloud's title.`;
@@ -63,7 +66,16 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-const { values: args, positionals } = parseArgs({
+/** Runs `f`, turning any error it throws into a short message instead of a stack trace. */
+function attempt<T>(f: () => T, context = ''): T {
+  try {
+    return f();
+  } catch (err) {
+    fail(`${context}${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+const { values: args, positionals } = attempt(() => parseArgs({
   allowPositionals: true,
   options: {
     out: { type: 'string', short: 'o' },
@@ -80,19 +92,26 @@ const { values: args, positionals } = parseArgs({
     ignore: { type: 'string' },
     seed: { type: 'string', short: 's' },
     example: { type: 'string' },
+    version: { type: 'boolean', short: 'v' },
     help: { type: 'boolean', short: 'h' },
   },
-});
+}));
 
 if (args.help) {
   console.log(HELP);
   process.exit(0);
 }
+if (args.version) {
+  console.log(VERSION);
+  process.exit(0);
+}
 
-const number = (name: string, value: string | undefined, min: number, max: number): number | undefined => {
+const number = (name: string, value: string | undefined, min: number, max: number, integer = false): number | undefined => {
   if (value === undefined) return undefined;
-  const n = Number(value);
-  if (!Number.isFinite(n) || n < min || n > max) fail(`--${name} must be a number from ${min} to ${max}, not "${value}".`);
+  const n = value.trim() === '' ? NaN : Number(value);
+  if (!Number.isFinite(n) || n < min || n > max || (integer && !Number.isInteger(n))) {
+    fail(`--${name} must be ${integer ? 'a whole number' : 'a number'} from ${min} to ${max}, not "${value}".`);
+  }
   return n;
 };
 
@@ -113,6 +132,9 @@ function readDocs(paths: string[]): Doc[] {
 
 const example = args.example ? EXAMPLES.find((e) => e.id === args.example) : undefined;
 if (args.example && !example) fail(`Unknown example "${args.example}". Pick one of: ${EXAMPLES.map((e) => e.id).join(', ')}.`);
+if (example && positionals.length) {
+  fail(`--example uses its own documents, so it can't be combined with files or folders (${positionals.join(', ')}).`);
+}
 
 if (!example && positionals.length === 0) {
   console.error(HELP);
@@ -123,7 +145,7 @@ if (!example && positionals.length === 0) {
 const examplesDir = [join(here, 'examples'), join(here, '..', '..', 'examples')].find((d) => existsSync(d));
 const docs = example
   ? example.docs.map((name) => ({ name, text: readFileSync(join(examplesDir ?? '', example.folder, `${name}.txt`), 'utf8') }))
-  : readDocs(positionals);
+  : attempt(() => readDocs(positionals), "Couldn't read the documents: ");
 if (docs.length === 0) fail('No .txt or .md files found. Give some text files or a folder, one document per file.');
 
 // ---------- Options ----------
@@ -140,20 +162,23 @@ const font: FontInfo =
 
 let size: { width: number; height: number } | undefined;
 if (args.size) {
-  const m = /^(\d+)x(\d+)$/.exec(args.size);
+  const m = /^(\d+)x(\d+)$/i.exec(args.size.trim());
   if (!m) fail(`--size must look like 640x480, not "${args.size}".`);
   size = { width: Number(m[1]), height: Number(m[2]) };
+  if (Math.min(size.width, size.height) < 16 || Math.max(size.width, size.height) > MAX_SIZE) {
+    fail(`--size must be from 16x16 to ${MAX_SIZE}x${MAX_SIZE}, not "${args.size}".`);
+  }
 }
 
 const given: Partial<StormOptions> = {
   mode: args.separate ? 'independent' : undefined,
-  maxWords: number('words', args.words, 1, 500),
+  maxWords: number('words', args.words, 1, 500, true),
   distinctiveness: args.distinct === undefined ? undefined : number('distinct', args.distinct, 0, 100)! / 100,
   sizeExponent: number('contrast', args.contrast, 0.1, 3),
   verticalShare: number('vertical', args.vertical, 0, 1),
   markShared: args.mark as StormOptions['markShared'] | undefined,
   palette: args.palette as PaletteName | undefined,
-  seed: number('seed', args.seed, 0, Number.MAX_SAFE_INTEGER),
+  seed: number('seed', args.seed, 0, Number.MAX_SAFE_INTEGER, true),
   ...size,
 };
 const options: Partial<StormOptions> = {
@@ -190,7 +215,7 @@ function embeddedCss(f: FontInfo): string {
 const started = performance.now();
 // Progress on one updating line, only when someone is watching.
 const progress = process.stderr.isTTY ? (m: string) => process.stderr.write(`\r\x1b[K${m}…`) : undefined;
-const storm = generateStorm(docs, options, createCanvasMeasurer((w, h) => createCanvas(w, h), font.spec), progress);
+const storm: Storm = attempt(() => generateStorm(docs, options, createCanvasMeasurer((w, h) => createCanvas(w, h), font.spec), progress));
 if (progress) process.stderr.write('\r\x1b[K');
 
 function pngOf(cloud: Cloud, width: number, height: number, scale = 2): Buffer {
@@ -203,31 +228,27 @@ function pngOf(cloud: Cloud, width: number, height: number, scale = 2): Buffer {
 }
 
 const out = resolve(cwd, args.out ?? 'wordstorm');
-mkdirSync(out, { recursive: true });
+attempt(() => mkdirSync(out, { recursive: true }), `Couldn't create ${out}: `);
 const { clouds, width, height } = cropStorm(storm);
 const written: string[] = [];
+const write = (name: string, data: string | Buffer) => {
+  attempt(() => writeFileSync(join(out, name), data), `Couldn't write ${name}: `);
+  written.push(name);
+};
 const css = formats.includes('svg') || formats.includes('html') ? embeddedCss(font) : '';
 if (formats.includes('svg')) {
-  cloudFileNames(storm, 'svg').forEach((name, i) => {
-    writeFileSync(join(out, name), cloudToSvg(clouds[i], width, height, { font: font.spec, css, background: storm.background }));
-    written.push(name);
-  });
+  cloudFileNames(storm, 'svg').forEach((name, i) =>
+    write(name, cloudToSvg(clouds[i], width, height, { font: font.spec, css, background: storm.background })),
+  );
 }
 if (formats.includes('png')) {
-  cloudFileNames(storm, 'png').forEach((name, i) => {
-    writeFileSync(join(out, name), pngOf(clouds[i], width, height));
-    written.push(name);
-  });
+  cloudFileNames(storm, 'png').forEach((name, i) => write(name, pngOf(clouds[i], width, height)));
 }
 if (formats.includes('html')) {
   const title = example ? example.title : undefined;
-  writeFileSync(join(out, 'index.html'), stormToHtml({ clouds, width, height, background: storm.background }, { font: font.spec, css, title }));
-  written.push('index.html');
+  write('index.html', stormToHtml({ clouds, width, height, background: storm.background }, { font: font.spec, css, title }));
 }
-if (formats.includes('json')) {
-  writeFileSync(join(out, 'storm.json'), JSON.stringify(storm, null, 2));
-  written.push('storm.json');
-}
+if (formats.includes('json')) write('storm.json', JSON.stringify(storm, null, 2));
 
 const shared = new Set(storm.clouds.flatMap((c) => c.words.filter((w) => w.cloudCount > 1).map((w) => w.text))).size;
 const skipped = storm.clouds.reduce((n, c) => n + c.skipped.length, 0);
