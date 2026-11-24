@@ -139,6 +139,8 @@ export interface Storm {
   background: string;
   clouds: Cloud[];
   stats: StormStats;
+  /** Every option the storm was made with, defaults included, so it can be made again. */
+  options: StormOptions;
 }
 
 export type Progress = (message: string) => void;
@@ -290,6 +292,7 @@ export function generateStorm(
     background: (PALETTES[opts.palette] ?? PALETTES.storm).background,
     clouds: result,
     stats: { passes, forceIterations, shrink: layout.sizeFactor, millis: Date.now() - start },
+    options: opts,
   };
 }
 

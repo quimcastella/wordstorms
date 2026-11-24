@@ -17,7 +17,8 @@ import { PALETTES, type PaletteName } from '../src/core/palettes.ts';
 import { DEFAULT_OPTIONS, generateStorm, MAX_SIZE, type Cloud, type Doc, type Storm, type StormOptions } from '../src/core/storm.ts';
 import { createCanvasMeasurer, fontWeight, type FontSpec } from '../src/measure/canvas.ts';
 import { drawCloud } from '../src/render/canvas.ts';
-import { cloudFileNames, cropStorm } from '../src/render/export.ts';
+import { cloudFileNames, cropStorm, stormToJson } from '../src/render/export.ts';
+import { VERSION } from '../src/core/version.ts';
 import { stormToHtml } from '../src/render/html.ts';
 import { cloudToSvg } from '../src/render/svg.ts';
 import { EXAMPLES } from '../src/app/example-list.ts';
@@ -27,8 +28,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 // `npm run` starts scripts in web/; INIT_CWD is where the user ran it from.
 const cwd = process.env.INIT_CWD ?? process.cwd();
 const MARKS = ['none', 'weight', 'warmth'] as const;
-// package.json sits one level up both from scripts/ and from the bundled dist-cli/.
-const VERSION = (JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf8')) as { version: string }).version;
 
 const HELP = `Make a word storm from text files: one cloud per file.
 
@@ -45,6 +44,8 @@ Options:
   -o, --out <dir>        Where to write the files (default: ./wordstorm)
   -f, --format <list>    Any of svg, png, html and json, comma-separated (default: svg,png,html)
       --separate         Lay out each cloud on its own instead of as a storm
+      --no-crop          Keep the full --size frame instead of cropping to the words
+      --scale <n>        PNG pixels per layout pixel, 0.25–8 (default: 2)
   -w, --words <n>        Words per cloud (default: ${DEFAULT_OPTIONS.maxWords})
   -d, --distinct <n>     Favor words a document uses more than the others, 0–100 (default: ${DEFAULT_OPTIONS.distinctiveness * 100})
       --contrast <n>     Size differences, 0.1–3: 1 is the original scale, higher is more dramatic (default: 1)
@@ -81,6 +82,8 @@ const { values: args, positionals } = attempt(() => parseArgs({
     out: { type: 'string', short: 'o' },
     format: { type: 'string', short: 'f' },
     separate: { type: 'boolean' },
+    'no-crop': { type: 'boolean' },
+    scale: { type: 'string' },
     words: { type: 'string', short: 'w' },
     distinct: { type: 'string', short: 'd' },
     contrast: { type: 'string' },
@@ -170,6 +173,9 @@ if (args.size) {
   }
 }
 
+/** PNG pixels per layout pixel. */
+const scale = number('scale', args.scale, 0.25, 8) ?? 2;
+
 const given: Partial<StormOptions> = {
   mode: args.separate ? 'independent' : undefined,
   maxWords: number('words', args.words, 1, 500, true),
@@ -229,7 +235,9 @@ function pngOf(cloud: Cloud, width: number, height: number, scale = 2): Buffer {
 
 const out = resolve(cwd, args.out ?? 'wordstorm');
 attempt(() => mkdirSync(out, { recursive: true }), `Couldn't create ${out}: `);
-const { clouds, width, height } = cropStorm(storm);
+// Every file uses the same frame: cropped to the words, unless --no-crop.
+const crop = !args['no-crop'];
+const { clouds, width, height } = crop ? cropStorm(storm) : storm;
 const written: string[] = [];
 const write = (name: string, data: string | Buffer) => {
   attempt(() => writeFileSync(join(out, name), data), `Couldn't write ${name}: `);
@@ -242,13 +250,13 @@ if (formats.includes('svg')) {
   );
 }
 if (formats.includes('png')) {
-  cloudFileNames(storm, 'png').forEach((name, i) => write(name, pngOf(clouds[i], width, height)));
+  cloudFileNames(storm, 'png').forEach((name, i) => write(name, pngOf(clouds[i], width, height, scale)));
 }
 if (formats.includes('html')) {
   const title = example ? example.title : undefined;
   write('index.html', stormToHtml({ clouds, width, height, background: storm.background }, { font: font.spec, css, title }));
 }
-if (formats.includes('json')) write('storm.json', JSON.stringify(storm, null, 2));
+if (formats.includes('json')) write('storm.json', stormToJson(storm, { crop, font: { id: font.id, ...font.spec } }));
 
 const shared = new Set(storm.clouds.flatMap((c) => c.words.filter((w) => w.cloudCount > 1).map((w) => w.text))).size;
 const skipped = storm.clouds.reduce((n, c) => n + c.skipped.length, 0);

@@ -63,8 +63,10 @@ are relative to where you run it.
 | Option | What it does | Default |
 |---|---|---|
 | `-o, --out <dir>` | Where to write the files | `./wordstorm` |
-| `-f, --format <list>` | Any of `svg`, `png`, `html` and `json`, comma-separated | `svg,png,html` |
+| `-f, --format <list>` | Any of `svg`, `png`, `html` and `json`, comma-separated. `storm.json` has every word's position in the same frame as the images, plus the version, font and full options used | `svg,png,html` |
 | `--separate` | Lay out each cloud on its own, like an ordinary word cloud, instead of as a storm | |
+| `--no-crop` | Keep the full `--size` frame; by default every file is cropped to the words, all to the same frame | |
+| `--scale <n>` | PNG pixels per layout pixel, 0.25–8 | 2 |
 | `-w, --words <n>` | Words per cloud; common English words ("the", "and", "said") are always left out | 35 |
 | `-d, --distinct <0-100>` | Favor words a document uses more than the others, in %. Unlike tf-idf, words every document uses can still appear, so there are shared words to line up | 20 |
 | `--contrast <0.1-3>` | Size differences: 1 is the original scale, higher is more dramatic (the site's slider covers 0.5–1.5) | 1 |

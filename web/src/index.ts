@@ -8,7 +8,9 @@ export { createCanvasMeasurer, cssFont, DEFAULT_FONT } from './measure/canvas.ts
 export type { CanvasLike, FontSpec } from './measure/canvas.ts';
 export { cloudToSvg, stormToSvg } from './render/svg.ts';
 export type { SvgOptions } from './render/svg.ts';
-export { cloudFileNames, cropStorm } from './render/export.ts';
+export { cloudFileNames, cropStorm, stormToJson } from './render/export.ts';
+export type { JsonOptions } from './render/export.ts';
+export { VERSION } from './core/version.ts';
 export { stormToHtml } from './render/html.ts';
 export type { HtmlOptions } from './render/html.ts';
 export { drawCloud } from './render/canvas.ts';

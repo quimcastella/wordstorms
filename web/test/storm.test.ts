@@ -30,6 +30,10 @@ describe('generateStorm', () => {
     }
   });
 
+  it('records the resolved options', () => {
+    expect(coordinated.options).toEqual({ ...DEFAULT_OPTIONS, ...counts, mode: 'coordinated' });
+  });
+
   it('is deterministic for a given seed', () => {
     const again = generateStorm(docs, { ...counts, mode: 'coordinated' }, measurer());
     expect(again.clouds).toEqual(coordinated.clouds);

@@ -1,6 +1,7 @@
 // Helpers for saving a storm's clouds as separate files (used by the site's
 // downloads and the command line).
 import type { Cloud, Storm } from '../core/storm.ts';
+import { VERSION } from '../core/version.ts';
 
 /**
  * The clouds cut down to the box around every cloud's words, plus a small margin. All files share this frame,
@@ -21,6 +22,37 @@ export function cropStorm(s: Storm): { clouds: Cloud[]; width: number; height: n
     width: Math.ceil(x1 - x0 + 2 * pad),
     height: Math.ceil(y1 - y0 + 2 * pad),
   };
+}
+
+export interface JsonOptions {
+  /** Cut the clouds to the shared frame `cropStorm` makes, as the SVG, PNG and HTML files are (default: true). */
+  crop?: boolean;
+  /** The font the storm was measured with, to record alongside it. */
+  font?: unknown;
+}
+
+/**
+ * The storm as JSON, for saving next to its images: the same frame as them (cropped
+ * unless `crop: false`), plus everything needed to make it again: the library
+ * version, the font and the resolved options, including the seed.
+ */
+export function stormToJson(s: Storm, opts: JsonOptions = {}): string {
+  const frame = opts.crop === false ? s : cropStorm(s);
+  return JSON.stringify(
+    {
+      version: VERSION,
+      font: opts.font,
+      options: s.options,
+      cropped: opts.crop !== false,
+      width: frame.width,
+      height: frame.height,
+      background: s.background,
+      stats: s.stats,
+      clouds: frame.clouds,
+    },
+    null,
+    2,
+  );
 }
 
 /** A file name per cloud from its name, safe on every OS and unique within the storm. */

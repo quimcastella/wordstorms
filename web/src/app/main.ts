@@ -5,7 +5,7 @@ import '@fontsource/bricolage-grotesque/700.css';
 import { strToU8, zipSync, type Zippable } from 'fflate';
 import { PALETTES, type PaletteName } from '../core/palettes.ts';
 import type { Doc, Storm, StormOptions } from '../core/storm.ts';
-import { cloudFileNames, cropStorm } from '../render/export.ts';
+import { cloudFileNames, cropStorm, stormToJson } from '../render/export.ts';
 import { cloudToSvg } from '../render/svg.ts';
 import { setupComparison } from './compare.ts';
 import { computeStorm, pageFont, type Job } from './compute.ts';
@@ -642,7 +642,11 @@ ui.dlPng.onclick = () =>
     download(new Blob([zipSync(files)], { type: 'application/zip' }), zipName('png'));
   });
 ui.dlJson.onclick = () =>
-  storm && download(new Blob([JSON.stringify(storm, null, 2)], { type: 'application/json' }), `${createFrom?.id ?? 'wordstorm'}.json`);
+  storm &&
+  download(
+    new Blob([stormToJson(storm, { font: { id: stormFont.id, ...stormFont.spec } })], { type: 'application/json' }),
+    `${createFrom?.id ?? 'wordstorm'}.json`,
+  );
 
 // ---------- Wiring ----------
 
