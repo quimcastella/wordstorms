@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { LANGUAGES, type Language } from '../src/core/language.ts';
 import { PALETTES, type PaletteName } from '../src/core/palettes.ts';
 import { DEFAULT_OPTIONS, generateStorm, MAX_SIZE, type Cloud, type Doc, type Storm, type StormOptions } from '../src/core/storm.ts';
 import { createCanvasMeasurer, fontWeight, type FontSpec } from '../src/measure/canvas.ts';
@@ -54,6 +55,8 @@ Options:
   -p, --palette <name>   ${Object.keys(PALETTES).join(', ')} (default: ${DEFAULT_OPTIONS.palette})
       --font <id>        ${FONT_LIST.map((f) => f.id).join(', ')} (default: ${FONT_LIST[0].id})
       --size <WxH>       Cloud size in pixels (default: ${DEFAULT_OPTIONS.width}x${DEFAULT_OPTIONS.height})
+      --language <name>  ${Object.keys(LANGUAGES).join(', ')}: which common words to leave out and how
+                         to clean up word forms; none keeps every word as written (default: english)
       --ignore <words>   Extra words to leave out, comma-separated
   -s, --seed <n>         Layout number; the same number gives the same layout (default: ${DEFAULT_OPTIONS.seed})
       --example <id>     Use a built-in example's documents and look instead of files; other options override it
@@ -92,6 +95,7 @@ const { values: args, positionals } = attempt(() => parseArgs({
     palette: { type: 'string', short: 'p' },
     font: { type: 'string' },
     size: { type: 'string' },
+    language: { type: 'string' },
     ignore: { type: 'string' },
     seed: { type: 'string', short: 's' },
     example: { type: 'string' },
@@ -159,6 +163,9 @@ for (const f of formats) if (!FORMATS.includes(f)) fail(`Unknown format "${f}". 
 
 if (args.palette && !(args.palette in PALETTES)) fail(`Unknown palette "${args.palette}". Pick one of: ${Object.keys(PALETTES).join(', ')}.`);
 if (args.mark && !(MARKS as readonly string[]).includes(args.mark)) fail(`--mark must be one of: ${MARKS.join(', ')}.`);
+if (args.language && !(args.language in LANGUAGES)) {
+  fail(`Unknown language "${args.language}". Pick one of: ${Object.keys(LANGUAGES).join(', ')}.`);
+}
 const font: FontInfo =
   FONT_LIST.find((f) => f.id === (args.font ?? example?.look.font ?? FONT_LIST[0].id)) ??
   fail(`Unknown font "${args.font}". Pick one of: ${FONT_LIST.map((f) => f.id).join(', ')}.`);
@@ -185,6 +192,7 @@ const given: Partial<StormOptions> = {
   markShared: args.mark as StormOptions['markShared'] | undefined,
   palette: args.palette as PaletteName | undefined,
   seed: number('seed', args.seed, 0, Number.MAX_SAFE_INTEGER, true),
+  ...(args.language ? LANGUAGES[args.language as Language] : {}),
   ...size,
 };
 const options: Partial<StormOptions> = {

@@ -2,11 +2,24 @@ import { STOPWORDS, type StopwordLanguage } from './stopwords.ts';
 
 export type TextCase = 'lower' | 'upper' | 'asis';
 
+/**
+ * Language-specific clean-up of word forms:
+ * `english` counts possessives with their noun (holmes's → holmes) and folds
+ * plurals into singulars when both appear (jobs → job); `catalan` splits off
+ * elided articles and pronouns (l'home → home, d'aigua → aigua) and attached
+ * pronouns (dir-ho → dir, donar-te'l → donar); `none` counts tokens as they are.
+ */
+export type Morphology = 'english' | 'catalan' | 'none';
+
 export interface CountOptions {
   textCase: TextCase;
   stopwords: StopwordLanguage;
   extraStopwords: readonly string[];
   excludeNumbers: boolean;
+  /** Default `english`. */
+  morphology?: Morphology;
+  /** Shorter words are dropped, in characters (default 2: single letters go). */
+  minWordLength?: number;
 }
 
 // Same token shape as cue.language's WordIterator: letter/digit runs, optionally
@@ -19,24 +32,43 @@ export function tokenize(text: string): string[] {
   return text.match(TOKEN) ?? [];
 }
 
-/** Counts words in a document, after case folding and stop word removal. */
+// Catalan elisions before a word (l', d', s', m', t', n', qu') and pronouns after a verb
+// ('l, 'ls, 'n, 'm, 't, 's, 'ns, 'us, 'hi, 'ho, or -ho, -te, -la, -los…, possibly several).
+const CATALAN_ELISION = /^(?:qu|[ldsmtn])['’](?=\p{L})/iu;
+const CATALAN_CLITICS =
+  /(?:['’](?:ls|ns|us|hi|ho|[lnmts])|-(?:me|te|se|nos|vos|lo|la|los|les|li|hi|ho|ne|en|el|els|ens|us|[lnmts]))+$/iu;
+
+/** A token's countable form under `morphology`. */
+function wordForm(token: string, morphology: Morphology): string {
+  if (morphology === 'english') return token.replace(/['’][sS]$/, '');
+  if (morphology === 'catalan') return token.replace(CATALAN_ELISION, '').replace(CATALAN_CLITICS, '');
+  return token;
+}
+
+/** Counts words in a document, after Unicode normalization, case folding and stop word removal. */
 export function countWords(text: string, opts: CountOptions): Map<string, number> {
-  const folded =
-    opts.textCase === 'lower' ? text.toLowerCase() : opts.textCase === 'upper' ? text.toUpperCase() : text;
+  const morphology = opts.morphology ?? 'english';
+  const minLength = opts.minWordLength ?? 2;
+  // NFC, so a decomposed "é" (e + combining accent) counts as the same word as "é".
+  const nfc = text.normalize('NFC');
+  const folded = opts.textCase === 'lower' ? nfc.toLowerCase() : opts.textCase === 'upper' ? nfc.toUpperCase() : nfc;
   const stop = STOPWORDS[opts.stopwords];
-  const extra = new Set(opts.extraStopwords.map((w) => w.toLowerCase()));
+  const extra = new Set(opts.extraStopwords.map((w) => w.normalize('NFC').toLowerCase()));
+  const isStop = (w: string) => {
+    const key = w.replace(/’/g, "'").toLowerCase();
+    return stop.has(key) || extra.has(key);
+  };
   const counts = new Map<string, number>();
   for (const raw of tokenize(folded)) {
-    const key = raw.replace(/’/g, "'").toLowerCase();
-    if (stop.has(key) || extra.has(key)) continue;
-    // Count possessives with their noun ("holmes's" → "holmes").
-    const token = raw.replace(/['’][sS]$/, '');
-    if ([...token].length === 1) continue;
-    if (stop.has(token.toLowerCase()) || extra.has(token.toLowerCase())) continue;
+    // The stop list is checked first, so "it's" stays a stop word rather than becoming "it".
+    if (isStop(raw)) continue;
+    const token = wordForm(raw, morphology);
+    if ([...token].length < minLength) continue;
+    if (isStop(token)) continue;
     if (opts.excludeNumbers && NUMBER.test(token)) continue;
     counts.set(token, (counts.get(token) ?? 0) + 1);
   }
-  return mergePlurals(counts);
+  return morphology === 'english' ? mergePlurals(counts) : counts;
 }
 
 /** Folds "xs" into "x" when both appear. */

@@ -4,7 +4,7 @@ import { boxMask, type Angle, type Glyph, type GlyphMeasurer, type Mask } from '
 import { PALETTES, type Palette, type PaletteName } from './palettes.ts';
 import { createRng, type Rng } from './random.ts';
 import { STOPWORDS, type StopwordLanguage } from './stopwords.ts';
-import { countWords, normalizeWeights, sortCounts, weighCounts, type TextCase } from './text.ts';
+import { countWords, normalizeWeights, sortCounts, weighCounts, type Morphology, type TextCase } from './text.ts';
 
 export interface Doc {
   name: string;
@@ -25,9 +25,17 @@ export interface StormOptions {
   maxFontSize: number;
   seed: number;
   textCase: TextCase;
+  /** Stop list: `extended` (default) or `english` (the original's) for English, `spanish`, `catalan`, or `none`. */
   stopwords: StopwordLanguage;
   extraStopwords: string[];
   excludeNumbers: boolean;
+  /**
+   * Word-form clean-up: `english` (default) merges possessives and plurals,
+   * `catalan` splits off elided articles and attached pronouns, `none` keeps tokens as they are.
+   */
+  morphology: Morphology;
+  /** Words shorter than this many characters are left out (default 2, so single letters go). */
+  minWordLength: number;
   /** `tfidf` multiplies counts by idf, so words in every document drop out. */
   weighting: 'tf' | 'tfidf';
   /**
@@ -71,6 +79,8 @@ export const DEFAULT_OPTIONS: StormOptions = {
   stopwords: 'extended',
   extraStopwords: [],
   excludeNumbers: true,
+  morphology: 'english',
+  minWordLength: 2,
   weighting: 'tf',
   distinctiveness: 0.2,
   sizeExponent: 1,
@@ -190,6 +200,8 @@ export function resolveOptions(options: Partial<StormOptions> = {}): StormOption
     bad('extraStopwords', 'an array of strings');
   }
   boolean('excludeNumbers');
+  oneOf('morphology', ['english', 'catalan', 'none']);
+  number('minWordLength', 1, 100, true);
   oneOf('weighting', ['tf', 'tfidf']);
   number('distinctiveness', 0, 1);
   number('sizeExponent', 0.01, 10);
