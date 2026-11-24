@@ -10,6 +10,7 @@ import { cloudFileNames, cropStorm, stormToJson } from '../render/export.ts';
 import { cloudToSvg } from '../render/svg.ts';
 import { setupComparison } from './compare.ts';
 import { computeStorm, pageFont, type Job } from './compute.ts';
+import { mergeDocs } from './documents.ts';
 import { EXAMPLES, exampleById, loadExampleDocs, type Example, type ExampleLook } from './examples.ts';
 import { embeddedFontCss, fontById, FONTS, type CloudFont } from './fonts.ts';
 import { documentsBucket, secondsBucket, track, wordsBucket } from './track.ts';
@@ -369,7 +370,7 @@ function addPasted() {
   ui.pasteText.focus();
 }
 
-/** Adds documents under Make your own; ones with the name of an existing document replace it. */
+/** Adds documents under Make your own; see mergeDocs for documents that share a name. */
 function addDocs(added: TextDoc[]) {
   if (view !== 'create') {
     // Dropping files while looking at examples starts your own storm, in the example's look.
@@ -379,11 +380,9 @@ function addDocs(added: TextDoc[]) {
     view = 'examples';
     setView('create');
   }
-  const names = new Set(added.map((d) => d.name));
   // Your own files replace an example's documents rather than mixing with them.
-  const kept = createFrom ? [] : docs.filter((d) => !names.has(d.name));
+  docs = mergeDocs(createFrom ? [] : docs, added);
   createFrom = null;
-  docs = [...kept, ...added].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   docsChanged();
 }
 
