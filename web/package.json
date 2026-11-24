@@ -1,6 +1,6 @@
 {
   "name": "wordstorms",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Word clouds that line up, so you can compare documents: coordinated word clouds as a command line tool, a TypeScript library and a web app",
   "license": "Apache-2.0",
   "repository": {
