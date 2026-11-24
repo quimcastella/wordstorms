@@ -153,8 +153,26 @@ export interface Cloud {
 export interface StormStats {
   passes: number;
   forceIterations: number;
+  /** False if the force phase stopped at `maxForceIterations` instead of settling (always true for separate clouds). */
+  forceConverged: boolean;
   /** Factor applied to font sizes so everything fit during layout. */
   shrink: number;
+  /** Words chosen across all clouds, and how many of them were placed (the rest are in `skipped`). */
+  selectedWords: number;
+  placedWords: number;
+  /**
+   * How far apart a shared word's copies are, in px of the output frame: for every word placed in
+   * two or more clouds, the distance from each copy's center to the mean of its copies' centers.
+   * Lower is better aligned; 0 when there are no shared words.
+   */
+  sharedOffset: { mean: number; max: number };
+  /**
+   * Overlaps the force phase left behind. Shared words in a storm are the only words moved without
+   * a collision check, so they're the only ones that can overlap: `pairs` of shared words in one
+   * cloud whose boxes intersect, and the deepest such overlap, in px of the output frame. Always 0
+   * for separate clouds.
+   */
+  overlap: { pairs: number; maxDepth: number };
   millis: number;
 }
 
@@ -340,12 +358,23 @@ export function generateStorm(
 
   onProgress('Fitting');
   const result = layout.fit(clouds, docs);
+  const selectedWords = clouds.reduce((n, ws) => n + ws.length, 0);
   return {
     width: opts.width,
     height: opts.height,
     background: (PALETTES[opts.palette] ?? PALETTES.storm).background,
     clouds: result,
-    stats: { passes, forceIterations, shrink: layout.sizeFactor, millis: Date.now() - start },
+    stats: {
+      passes,
+      forceIterations,
+      forceConverged: !coordinated || forceIterations < opts.maxForceIterations,
+      shrink: layout.sizeFactor,
+      selectedWords,
+      placedWords: result.reduce((n, c) => n + c.words.length, 0),
+      sharedOffset: sharedOffset(result),
+      overlap: coordinated ? sharedOverlap(result) : { pairs: 0, maxDepth: 0 },
+      millis: Date.now() - start,
+    },
     options: opts,
   };
 }
@@ -787,6 +816,54 @@ class Layout {
         }),
     }));
   }
+}
+
+/** See `StormStats.sharedOffset`. */
+export function sharedOffset(clouds: Cloud[]): { mean: number; max: number } {
+  const copies = new Map<string, { x: number; y: number }[]>();
+  for (const c of clouds) {
+    for (const w of c.words) {
+      let list = copies.get(w.text);
+      if (!list) copies.set(w.text, (list = []));
+      list.push({ x: w.x + w.width / 2, y: w.y + w.height / 2 });
+    }
+  }
+  let sum = 0;
+  let max = 0;
+  let n = 0;
+  for (const list of copies.values()) {
+    if (list.length < 2) continue;
+    const cx = list.reduce((s, p) => s + p.x, 0) / list.length;
+    const cy = list.reduce((s, p) => s + p.y, 0) / list.length;
+    for (const p of list) {
+      const d = Math.hypot(p.x - cx, p.y - cy);
+      sum += d;
+      max = Math.max(max, d);
+      n++;
+    }
+  }
+  return { mean: n ? sum / n : 0, max };
+}
+
+/** See `StormStats.overlap`. */
+export function sharedOverlap(clouds: Cloud[]): { pairs: number; maxDepth: number } {
+  let pairs = 0;
+  let maxDepth = 0;
+  for (const c of clouds) {
+    const shared = c.words.filter((w) => w.cloudCount > 1);
+    for (let i = 0; i < shared.length; i++) {
+      for (let j = i + 1; j < shared.length; j++) {
+        const a = shared[i];
+        const b = shared[j];
+        const dx = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+        const dy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+        if (dx <= 0 || dy <= 0) continue;
+        pairs++;
+        maxDepth = Math.max(maxDepth, Math.min(dx, dy));
+      }
+    }
+  }
+  return { pairs, maxDepth };
 }
 
 function average(e: Entry): { x: number; y: number } | null {

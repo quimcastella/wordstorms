@@ -34,6 +34,36 @@ describe('generateStorm', () => {
     expect(coordinated.options).toEqual({ ...DEFAULT_OPTIONS, ...counts, mode: 'coordinated' });
   });
 
+  it('lines shared words up far better than separate clouds do', () => {
+    const c = coordinated.stats.sharedOffset;
+    const i = independent.stats.sharedOffset;
+    expect(c.mean).toBeGreaterThan(0);
+    expect(c.mean * 3).toBeLessThan(i.mean);
+    expect(c.max).toBeLessThan(i.max);
+  });
+
+  it('reports placement and leaves at most sub-pixel overlaps', () => {
+    for (const { stats, clouds } of [coordinated, independent]) {
+      expect(stats.selectedWords).toBe(clouds.length * 25);
+      expect(stats.placedWords).toBe(clouds.reduce((n, c) => n + c.words.length, 0));
+      expect(stats.forceConverged).toBe(true);
+    }
+    expect(coordinated.stats.overlap.maxDepth).toBeLessThan(2);
+    expect(independent.stats.overlap).toEqual({ pairs: 0, maxDepth: 0 });
+  });
+
+  it('keeps every placed word inside the frame, with finite numbers', () => {
+    for (const storm of [coordinated, independent]) {
+      for (const w of storm.clouds.flatMap((c) => c.words)) {
+        for (const v of [w.x, w.y, w.width, w.height, w.fontSize]) expect(Number.isFinite(v)).toBe(true);
+        expect(w.x).toBeGreaterThanOrEqual(-0.5);
+        expect(w.y).toBeGreaterThanOrEqual(-0.5);
+        expect(w.x + w.width).toBeLessThanOrEqual(storm.width + 0.5);
+        expect(w.y + w.height).toBeLessThanOrEqual(storm.height + 0.5);
+      }
+    }
+  });
+
   it('is deterministic for a given seed', () => {
     const again = generateStorm(docs, { ...counts, mode: 'coordinated' }, measurer());
     expect(again.clouds).toEqual(coordinated.clouds);
