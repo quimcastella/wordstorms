@@ -10,15 +10,17 @@ one apart.
 
 Six collections of fairy tales and fables (`--example fairytales`). Bold words
 are in more than one collection's cloud and sit in the same spot in each; thin
-words are in only one collection's cloud.
+words are in only one collection's cloud. Clouds that look alike come from
+collections that use similar words. Aesop's cloud, almost all thin words,
+stands apart: its fables are about animals, not kings and princesses.
 
 Separate word clouds, made one at a time, put the same word somewhere
 different every time. In a word storm it lines up:
 
 ![The same three collections as separate word clouds and as a word storm](https://raw.githubusercontent.com/quimcastella/wordstorms/master/docs/images/comparison.png)
 
-Prefer a browser? [wordstorms.org](https://wordstorms.org) does the same, and
-your files never leave your computer.
+The same tool runs in the browser at [wordstorms.org](https://wordstorms.org),
+without uploading your files.
 
 ## Usage
 

@@ -11,15 +11,18 @@ see at a glance what the documents have in common and what sets each one
 apart. Use it to compare books, chapters, speeches, papers, survey answers or
 any other collection of texts.
 
-**[Try it at wordstorms.org](https://wordstorms.org).** It's free, there's
-nothing to install, and your documents never leave your browser.
+You can try it at [wordstorms.org](https://wordstorms.org). The site runs in
+the browser, so documents are not uploaded anywhere.
 
 ![A word storm of six collections of fairy tales and fables](docs/images/fairytales.png)
 
 Six collections of fairy tales and fables. Bold words are in more than one
 collection's cloud and sit in the same spot in each: *little* in Grimm,
 Andersen and Perrault, *king* in four of the six. Thin words are in only one
-collection's cloud, like the lion, wolf and fox of Aesop's fables.
+collection's cloud, like the lion, wolf and fox of Aesop's fables. Clouds
+that look alike come from collections that use similar words, and a cloud that
+looks different comes from a collection that doesn't. Aesop's cloud is almost
+all thin words: its fables are about animals, not kings and princesses.
 
 ## Why not separate word clouds?
 
@@ -72,10 +75,10 @@ Raise `--words` to see more of each document's vocabulary.
 
 ![A word storm of three Shakespeare tragedies and three comedies](docs/images/shakespeare.png)
 
-Three tragedies (top) and three comedies (bottom), dialogue only. *Heart* makes
-the cloud of all six plays, and *heaven* only the tragedies'. *Love* is in
-every cloud except Macbeth's, which has *fear*, *blood* and *sleep* instead.
-Macbeth does say *love*, just not often enough to make its top words.
+Three tragedies (top) and three comedies (bottom), dialogue only. *Heart* is
+a top word in all six plays, and *heaven* only in the tragedies. *Love* is a
+top word in every play but Macbeth, where *fear*, *blood* and *sleep* take its
+place.
 
 Word storms come from the paper
 [*Word Storms: Multiples of Word Clouds for Visual Comparison of Documents*](https://arxiv.org/abs/1301.0503)
