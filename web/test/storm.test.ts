@@ -148,3 +148,42 @@ function inkOverlaps(storm: Storm): number {
   }
   return shared;
 }
+
+describe('generateStorm edge cases', () => {
+  const finiteWords = (storm: Storm) =>
+    storm.clouds.every((c) =>
+      c.words.every((w) => [w.x, w.y, w.width, w.height, w.fontSize, w.weight].every(Number.isFinite)),
+    );
+
+  it('drops words every document has with tf-idf instead of bringing them back', () => {
+    const text = 'castle castle castle dragon dragon knight';
+    const storm = generateStorm(
+      [
+        { name: 'a', text },
+        { name: 'b', text },
+      ],
+      { weighting: 'tfidf', distinctiveness: 0.2 },
+      measurer(),
+    );
+    expect(storm.clouds.map((c) => c.words.length + c.skipped.length)).toEqual([0, 0]);
+  });
+
+  it('copes with tf-idf plus keyness, empty documents and stop-word-only documents', () => {
+    const storm = generateStorm(
+      [
+        { name: 'shared', text: 'river stone river stone forest' },
+        { name: 'also', text: 'river stone mountain mountain' },
+        { name: 'empty', text: '' },
+        { name: 'stop', text: 'the and of a to in' },
+      ],
+      { weighting: 'tfidf', distinctiveness: 0.5 },
+      measurer(),
+    );
+    expect(finiteWords(storm)).toBe(true);
+    const texts = (i: number) => storm.clouds[i].words.map((w) => w.text).sort();
+    expect(texts(0)).toEqual(['forest', 'river', 'stone']);
+    expect(texts(1)).toEqual(['mountain', 'river', 'stone']);
+    expect(storm.clouds[2].words).toEqual([]);
+    expect(storm.clouds[3].words).toEqual([]);
+  });
+});
