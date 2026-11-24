@@ -1,5 +1,35 @@
-// Public API of the Word Storms library.
-export { generateStorm, resolveOptions, DEFAULT_OPTIONS, PAPER_OPTIONS, MAX_SIZE } from './core/storm.ts';
+// Public API of the Word Storms library: the layout, measuring text with a
+// canvas, and drawing as SVG, HTML or on a canvas. Nothing here needs Node.js
+// or a DOM; `wordstorms/node` adds a measurer and PNGs for Node.js.
+import { generateStorm as layOut, type Doc, type Progress, type Storm, type StormOptions } from './core/storm.ts';
+import type { GlyphMeasurer } from './core/glyph.ts';
+import { createCanvasMeasurer } from './measure/canvas.ts';
+
+/**
+ * Builds a word storm: one cloud per document, laid out together (or apart, with `mode: 'independent'`).
+ * Text is measured with `measurer`; without one, with an `OffscreenCanvas` in the
+ * default font, where there is one (browsers and web workers). In Node.js, import
+ * `generateStorm` from `wordstorms/node` instead, or pass a measurer.
+ */
+export function generateStorm(
+  docs: Doc[],
+  options: Partial<StormOptions> = {},
+  measurer: GlyphMeasurer = offscreenMeasurer(),
+  onProgress?: Progress,
+): Storm {
+  return layOut(docs, options, measurer, onProgress);
+}
+
+function offscreenMeasurer(): GlyphMeasurer {
+  if (typeof OffscreenCanvas === 'undefined') {
+    throw new Error(
+      "generateStorm needs a way to measure text: pass createCanvasMeasurer(...), or in Node.js import { generateStorm } from 'wordstorms/node'.",
+    );
+  }
+  return createCanvasMeasurer((w, h) => new OffscreenCanvas(w, h));
+}
+
+export { resolveOptions, DEFAULT_OPTIONS, PAPER_OPTIONS, MAX_SIZE } from './core/storm.ts';
 export type { Doc, TextDoc, CountsDoc, Storm, Cloud, PlacedWord, StormOptions, StormStats, Mode, Progress } from './core/storm.ts';
 export { PALETTES } from './core/palettes.ts';
 export type { Palette, PaletteName } from './core/palettes.ts';

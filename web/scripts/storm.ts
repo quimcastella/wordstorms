@@ -15,9 +15,9 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { LANGUAGES, type Language } from '../src/core/language.ts';
 import { PALETTES, type PaletteName } from '../src/core/palettes.ts';
-import { DEFAULT_OPTIONS, generateStorm, MAX_SIZE, type Cloud, type Doc, type Storm, type StormOptions } from '../src/core/storm.ts';
+import { DEFAULT_OPTIONS, generateStorm, MAX_SIZE, type Doc, type Storm, type StormOptions } from '../src/core/storm.ts';
 import { createCanvasMeasurer, fontWeight, type FontSpec } from '../src/measure/canvas.ts';
-import { drawCloud } from '../src/render/canvas.ts';
+import { cloudToPng } from '../src/node.ts';
 import { cloudFileNames, cropStorm, stormToJson } from '../src/render/export.ts';
 import { VERSION } from '../src/core/version.ts';
 import { stormToHtml } from '../src/render/html.ts';
@@ -243,22 +243,13 @@ const progress = process.stderr.isTTY ? (m: string) => process.stderr.write(`\r\
 const storm: Storm = attempt(() => generateStorm(docs, options, createCanvasMeasurer((w, h) => createCanvas(w, h), font.spec), progress));
 if (progress) process.stderr.write('\r\x1b[K');
 
-function pngOf(cloud: Cloud, width: number, height: number, scale = 2): Buffer {
-  const canvas = createCanvas(Math.round(width * scale), Math.round(height * scale));
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = storm.background;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  drawCloud(ctx, cloud, font.spec, { scale });
-  return canvas.toBuffer('image/png');
-}
-
 const out = resolve(cwd, args.out ?? 'wordstorm');
 attempt(() => mkdirSync(out, { recursive: true }), `Couldn't create ${out}: `);
 // Every file uses the same frame: cropped to the words, unless --no-crop.
 const crop = !args['no-crop'];
 const { clouds, width, height } = crop ? cropStorm(storm) : storm;
 const written: string[] = [];
-const write = (name: string, data: string | Buffer) => {
+const write = (name: string, data: string | Uint8Array) => {
   attempt(() => writeFileSync(join(out, name), data), `Couldn't write ${name}: `);
   written.push(name);
 };
@@ -269,7 +260,7 @@ if (formats.includes('svg')) {
   );
 }
 if (formats.includes('png')) {
-  cloudFileNames(storm, 'png').forEach((name, i) => write(name, pngOf(clouds[i], width, height, scale)));
+  cloudFileNames(storm, 'png').forEach((name, i) => write(name, cloudToPng(clouds[i], width, height, { font: font.spec, background: storm.background, scale })));
 }
 if (formats.includes('html')) {
   const title = example ? example.title : undefined;

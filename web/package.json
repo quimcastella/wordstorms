@@ -12,14 +12,30 @@
     "word cloud",
     "word storm",
     "text visualization",
-    "cli"
+    "cli",
+    "library"
   ],
   "type": "module",
+  "main": "./dist-lib/index.js",
+  "types": "./dist-lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist-lib/index.d.ts",
+      "default": "./dist-lib/index.js"
+    },
+    "./node": {
+      "types": "./dist-lib/node.d.ts",
+      "default": "./dist-lib/node.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
   "bin": {
     "wordstorms": "dist-cli/wordstorms.js"
   },
   "files": [
-    "dist-cli"
+    "dist-cli",
+    "dist-lib"
   ],
   "engines": {
     "node": ">=22.18"
@@ -32,9 +48,10 @@
     "typecheck": "tsc --noEmit",
     "storm": "node scripts/storm.ts",
     "build:cli": "vite build -c vite.cli.config.ts",
-    "prepack": "npm run build:cli",
+    "prepack": "npm run build:cli && npm run build:lib",
     "render-examples": "node scripts/render-examples.ts",
-    "build-corpora": "node scripts/build-corpora.ts"
+    "build-corpora": "node scripts/build-corpora.ts",
+    "build:lib": "node -e \"fs.rmSync('dist-lib', { recursive: true, force: true })\" && tsc -p tsconfig.lib.json"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

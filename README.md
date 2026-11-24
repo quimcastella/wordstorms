@@ -88,31 +88,43 @@ they look the same anywhere.
 
 ## Use it as a library
 
-The npm package has only the command line; to use the library, import it from a
-clone (see [Development](#development)). The layout code has no DOM
-dependency. Give it a way to measure text: a canvas in the browser, or
-[`@napi-rs/canvas`](https://www.npmjs.com/package/@napi-rs/canvas) in Node.
+The same package is a TypeScript library (types included):
 
-```ts
-import { generateStorm, createCanvasMeasurer, cloudToSvg } from './web/src/index.ts';
-
-const measurer = createCanvasMeasurer((w, h) => new OffscreenCanvas(w, h));
-const storm = generateStorm(
-  [
-    { name: 'Hamlet', text: '…' },
-    { name: 'Macbeth', text: '…' },
-  ],
-  { maxWords: 40, distinctiveness: 0.3 },
-  measurer,
-);
-const svgs = storm.clouds.map((cloud) => cloudToSvg(cloud, storm.width, storm.height));
+```bash
+npm install wordstorms
 ```
 
+In Node.js, import from `wordstorms/node`, which measures text with
+[`@napi-rs/canvas`](https://www.npmjs.com/package/@napi-rs/canvas) and can
+draw PNGs:
+
+```ts
+import { generateStorm, stormToSvg, cloudToPng } from 'wordstorms/node';
+
+const storm = generateStorm(
+  [
+    { name: 'Hamlet', text: hamlet },
+    { name: 'Macbeth', text: macbeth },
+    // Or word counts from your own pipeline:
+    { name: 'Survey', words: { economy: 45, education: 32, health: 18 } },
+  ],
+  { maxWords: 40, distinctiveness: 0.3 },
+);
+const svg = stormToSvg(storm); // every cloud in a grid; cloudToSvg draws one
+const png = cloudToPng(storm.clouds[0], storm.width, storm.height, { background: storm.background });
+```
+
+In the browser or a web worker, import from `wordstorms`: it has no Node.js
+or DOM dependency and measures text with an `OffscreenCanvas` by default. To
+use a font of your own, load it first and pass a measurer:
+`generateStorm(docs, options, createCanvasMeasurer((w, h) => new OffscreenCanvas(w, h), '"My Font"'))`,
+and give the same font to `cloudToSvg`.
+
 `PAPER_OPTIONS` gives the settings used in the paper
-(`generateStorm(docs, { ...PAPER_OPTIONS }, measurer)`). `cropStorm` trims the
-clouds to a shared frame for saving, `cloudFileNames` gives safe file names,
-`drawCloud` draws a cloud on a canvas, and `stormToHtml` makes the
-side-by-side page.
+(`generateStorm(docs, { ...PAPER_OPTIONS })`). `cropStorm` trims the clouds to
+a shared frame for saving, `stormToJson` saves the layout with the options
+that made it, `cloudFileNames` gives safe file names, `drawCloud` draws a
+cloud on a canvas, and `stormToHtml` makes the side-by-side page.
 [web/scripts/storm.ts](web/scripts/storm.ts) is a complete Node example.
 
 ## How it works
@@ -148,6 +160,7 @@ own with `#create`.
 | `npm run dev` | Dev server with hot reload |
 | `npm run storm -- …` | Makes a storm from text files (see [Command line](#command-line)) |
 | `npm run build:cli` | Bundles the command line into `web/dist-cli/` for publishing (`npm publish` runs it) |
+| `npm run build:lib` | Compiles the library into `web/dist-lib/` for publishing (`npm publish` runs it too) |
 | `npm test` | Unit and layout tests |
 | `npm run typecheck` | TypeScript checks |
 | `npm run render-examples` | Renders the examples to PNG in `web/out/examples/` |

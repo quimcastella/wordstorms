@@ -75,6 +75,27 @@ wordstorms path/to/folder
 | `--example <id>` | Use a built-in example's documents and look instead of files; other options override it | |
 | `-v, --version` | Show the version | |
 
+## As a library
+
+The package is also a TypeScript library:
+
+```ts
+import { generateStorm, stormToSvg } from 'wordstorms/node';
+
+const storm = generateStorm([
+  { name: 'Hamlet', text: hamlet },
+  { name: 'Macbeth', text: macbeth },
+  { name: 'Survey', words: { economy: 45, education: 32, health: 18 } }, // your own counts
+]);
+const svg = stormToSvg(storm);
+```
+
+`wordstorms/node` measures text with `@napi-rs/canvas` and adds `cloudToPng`.
+In browsers, import from `wordstorms`, which has no Node.js dependency and
+measures with an `OffscreenCanvas`. The
+[repository README](https://github.com/quimcastella/wordstorms#use-it-as-a-library)
+has more.
+
 ## How it works
 
 Word storms come from the paper
@@ -86,7 +107,7 @@ pushes overlaps apart. Words only one document uses fill in around them.
 [ALGORITHM.md](https://github.com/quimcastella/wordstorms/blob/master/ALGORITHM.md)
 has the details.
 
-The source, the site and a TypeScript library are on
+The source and the site are on
 [GitHub](https://github.com/quimcastella/wordstorms). If you use word storms
 in your work, please cite the paper (BibTeX is in the repository's README).
 
