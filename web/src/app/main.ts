@@ -4,7 +4,7 @@ import '@fontsource/inter/600.css';
 import '@fontsource/bricolage-grotesque/700.css';
 import { strToU8, zipSync, type Zippable } from 'fflate';
 import { PALETTES, type PaletteName } from '../core/palettes.ts';
-import type { Doc, Storm, StormOptions } from '../core/storm.ts';
+import type { Storm, StormOptions, TextDoc } from '../core/storm.ts';
 import { cloudFileNames, cropStorm, stormToJson } from '../render/export.ts';
 import { cloudToSvg } from '../render/svg.ts';
 import { setupComparison } from './compare.ts';
@@ -85,9 +85,9 @@ let view: View = 'examples';
 /** The example shown under Explore examples. */
 let example: Example = DEFAULT_EXAMPLE;
 /** The documents being laid out: the example's, or yours under Make your own. */
-let docs: Doc[] = [];
+let docs: TextDoc[] = [];
 /** Your documents and settings under Make your own, kept while you look at examples. */
-let createDocs: Doc[] = [];
+let createDocs: TextDoc[] = [];
 let createControls: Controls | null = null;
 /** The example Make your own started from (its documents and hidden ignore list), until you add your own files. */
 let createFrom: Example | null = null;

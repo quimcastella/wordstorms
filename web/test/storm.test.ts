@@ -241,3 +241,35 @@ describe('generateStorm with too little room', () => {
     expect(generateStorm([], {}, measurer()).clouds).toEqual([]);
   });
 });
+
+describe('generateStorm with word counts', () => {
+  const a = { name: 'A', words: { economy: 45, education: 32, health: 18 } };
+  const b = { name: 'B', words: new Map([['economy', 12], ['education', 28], ['health', 42], ['Café', 3]]) };
+
+  it('uses the given weights as they are, without stop words or case folding', () => {
+    const storm = generateStorm([a, b], { distinctiveness: 0 }, measurer());
+    const weights = Object.fromEntries(storm.clouds[0].words.map((w) => [w.text, w.weight]));
+    expect(Object.keys(weights).sort()).toEqual(['economy', 'education', 'health']);
+    expect(weights.economy / weights.health).toBeCloseTo(45 / 18);
+    expect(storm.clouds[1].words.map((w) => w.text)).toContain('Café');
+    expect(storm.clouds[0].words.every((w) => w.cloudCount === 2)).toBe(true);
+  });
+
+  it('mixes with text documents and still honors extraStopwords', () => {
+    const storm = generateStorm(
+      [a, { name: 'T', text: 'economy economy growth' }],
+      { extraStopwords: ['health'] },
+      measurer(),
+    );
+    expect(storm.clouds[0].words.map((w) => w.text).sort()).toEqual(['economy', 'education']);
+    expect(storm.clouds[1].words.map((w) => w.text).sort()).toEqual(['economy', 'growth']);
+  });
+
+  it('drops zero weights and rejects bad ones', () => {
+    const storm = generateStorm([{ name: 'z', words: { kept: 2, gone: 0 } }], {}, measurer());
+    expect(storm.clouds[0].words.map((w) => w.text)).toEqual(['kept']);
+    expect(() => generateStorm([{ name: 'n', words: { x: -1 } }], {}, measurer())).toThrow(/weight of "x"/);
+    expect(() => generateStorm([{ name: 's', words: { x: '3' } } as never], {}, measurer())).toThrow(/weight of "x"/);
+    expect(() => generateStorm([{ name: 'both', text: 'a', words: {} } as never], {}, measurer())).toThrow(/both/);
+  });
+});

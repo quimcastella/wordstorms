@@ -6,10 +6,26 @@ import { createRng, type Rng } from './random.ts';
 import { STOPWORDS, type StopwordLanguage } from './stopwords.ts';
 import { countWords, normalizeWeights, sortCounts, weighCounts, type Morphology, type TextCase } from './text.ts';
 
-export interface Doc {
+/** A document given as text: its words are counted with the storm's text options. */
+export interface TextDoc {
   name: string;
   text: string;
+  words?: undefined;
 }
+
+/**
+ * A document given as word weights (counts, scores, anything positive), for
+ * text processed elsewhere. They're used as given: no stop words, case folding
+ * or word-form clean-up, except that `extraStopwords` still leaves words out.
+ */
+export interface CountsDoc {
+  name: string;
+  words: Record<string, number> | Map<string, number>;
+  text?: undefined;
+}
+
+/** One document, which becomes one cloud. */
+export type Doc = TextDoc | CountsDoc;
 
 export type Mode = 'coordinated' | 'independent';
 
@@ -218,10 +234,36 @@ export function resolveOptions(options: Partial<StormOptions> = {}): StormOption
 function checkDocs(docs: Doc[]): void {
   if (!Array.isArray(docs)) throw new TypeError('generateStorm expects an array of documents.');
   docs.forEach((d, i) => {
-    if (!d || typeof d.name !== 'string' || typeof d.text !== 'string') {
-      throw new TypeError(`Document ${i} must be an object with a string name and text.`);
+    if (!d || typeof d.name !== 'string') throw new TypeError(`Document ${i} must have a string name.`);
+    const doc = `Document ${i} ("${d.name}")`;
+    if (d.words === undefined) {
+      if (typeof d.text !== 'string') throw new TypeError(`${doc} needs either text or words.`);
+      return;
+    }
+    if ((d as Doc).text !== undefined) throw new TypeError(`${doc} has both text and words; give one.`);
+    if (typeof d.words !== 'object' || d.words === null || Array.isArray(d.words)) {
+      throw new TypeError(`${doc}: words must be an object or Map of word → weight.`);
+    }
+    const entries = d.words instanceof Map ? [...d.words] : Object.entries(d.words);
+    for (const [w, n] of entries) {
+      if (typeof n !== 'number' || !Number.isFinite(n) || n < 0) {
+        throw new TypeError(`${doc}: the weight of "${w}" must be a number ≥ 0, not ${JSON.stringify(n)}.`);
+      }
     }
   });
+}
+
+/** A document's word weights: given ones as they are (NFC, summed if that merges two), or counted from its text. */
+function docCounts(d: Doc, opts: StormOptions): Map<string, number> {
+  if (d.words === undefined) return countWords(d.text, opts);
+  const extra = new Set(opts.extraStopwords.map((w) => w.normalize('NFC').toLowerCase()));
+  const counts = new Map<string, number>();
+  for (const [w, n] of d.words instanceof Map ? d.words : Object.entries(d.words)) {
+    const word = w.normalize('NFC').trim();
+    if (!word || extra.has(word.toLowerCase())) continue;
+    counts.set(word, (counts.get(word) ?? 0) + n);
+  }
+  return counts;
 }
 
 /** One word across the storm: its copies in every cloud that kept it. */
@@ -311,7 +353,7 @@ export function generateStorm(
 /** Each document's top words, linked across clouds through a shared Entry per word. */
 function selectWords(docs: Doc[], opts: StormOptions): WordState[][] {
   const counts = weighCounts(
-    docs.map((d) => countWords(d.text, opts)),
+    docs.map((d) => docCounts(d, opts)),
     opts.weighting,
     opts.distinctiveness,
   );

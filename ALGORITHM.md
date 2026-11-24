@@ -8,7 +8,10 @@ one used for the paper.
 
 ## Inputs and outputs
 
-- **Input:** a list of documents `{name, text}`. Each document becomes one cloud.
+- **Input:** a list of documents, each `{name, text}` or `{name, words}`, where
+  `words` maps words to weights computed elsewhere (counts, scores). Each
+  document becomes one cloud. Given weights skip steps 1–6 below, except that
+  `extraStopwords` still applies.
 - **Output:** for every cloud, a list of placed words with their text, font
   size, angle (0 or ±90°), color, opacity, and the top-left corner of the
   word's tight bounding box. All clouds share one coordinate frame of

@@ -41,7 +41,9 @@ It writes one SVG and one PNG per cloud into `./wordstorm`, plus an
 `index.html` that shows all the clouds side by side: open it in a browser and
 hover a word to find it in every cloud. All the clouds are the same size, so
 shared words line up when you stack them, and the SVGs embed their font, so
-they look the same anywhere. Each file name becomes its cloud's title.
+they look the same anywhere. Each file name becomes its cloud's title. To use
+word counts from your own pipeline, give `.json` files like
+`{"economy": 45, "health": 18}` by name instead of text files.
 
 If you use it often, install it once to get a `wordstorms` command:
 
