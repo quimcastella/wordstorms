@@ -70,6 +70,20 @@
               <strong>Drop text files</strong>
               <span>or click to browse · one cloud per file</span>
             </label>
+            <details class="more paste" id="paste">
+              <summary>Or paste text</summary>
+              <div class="more-body">
+                <label class="field">
+                  <span>Name</span>
+                  <input type="text" id="pasteName" placeholder="e.g. Chapter 1" autocomplete="off" />
+                </label>
+                <label class="field">
+                  <span>Text</span>
+                  <textarea id="pasteText" rows="6" placeholder="Paste one document here"></textarea>
+                </label>
+                <button type="button" id="pasteAdd">Add document</button>
+              </div>
+            </details>
             <p class="privacy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Everything runs in your browser. Your files never leave your computer.</span></p>
             <ul id="doclist" class="doclist"></ul>
             <div class="docfoot">
@@ -87,6 +101,16 @@
               <span>Favor distinctive words <output id="distinctOut"></output></span>
               <input type="range" id="distinct" min="0" max="100" step="10" value="20" />
               <span class="scale" aria-hidden="true"><span>Most frequent</span><span>Most distinctive</span></span>
+            </label>
+            <label class="field">
+              <span>Language</span>
+              <select id="language">
+                <option value="english">English</option>
+                <option value="spanish">Spanish</option>
+                <option value="catalan">Catalan</option>
+                <option value="none">Other: keep every word</option>
+              </select>
+              <span class="hint" id="languageHint"></span>
             </label>
             <label class="field">
               <span>Ignore these words</span>
@@ -144,7 +168,7 @@
                   <span>Fade words every document uses</span>
                 </label>
                 <label class="field">
-                  <span>Layout number</span>
+                  <span>Layout number (seed)</span>
                   <input type="number" id="seed" value="123456" />
                   <span class="hint">The same number always gives the same layout. New layout picks a random one.</span>
                 </label>
@@ -217,8 +241,11 @@
               </div>
             </div>
             <h2>Drop your documents here</h2>
-            <p>You need at least two text files, one per document. Each file becomes a cloud, and the words they share go in the same place.</p>
-            <button type="button" id="browse" class="primary big"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Choose files</button>
+            <p>You need at least two documents: text files, or text you paste. Each file becomes a cloud, and the words they share go in the same place.</p>
+            <div class="bigdrop-actions">
+              <button type="button" id="browse" class="primary big"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Choose files</button>
+              <button type="button" id="pasteOpen" class="big">Paste text</button>
+            </div>
             <p class="privacy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Everything runs in your browser. Your files never leave your computer.</span></p>
           </div>
           <div class="empty-tips">

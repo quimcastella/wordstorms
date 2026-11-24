@@ -1134,6 +1134,29 @@ legend {
   max-width: none;
 }
 
+.bigdrop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.paste textarea {
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+  font: inherit;
+  color: inherit;
+}
+
+.paste button {
+  justify-self: start;
+}
+
 button.big {
   display: inline-flex;
   align-items: center;
