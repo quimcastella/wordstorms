@@ -18,6 +18,19 @@ Changes to the `wordstorms` npm package: the command line and the library.
 - `tieBreak` option (`keyness` or `alphabetical`) and `--tie-break` on the
   command line.
 
+### Fixed
+
+- Some storms came out as specks: every word a fraction of a pixel tall, in a
+  sliver of the frame. Two shared words stacked exactly on each other were
+  pushed the same way, together, for the whole force phase, shoving another
+  word far off, and the storm was then shrunk to fit it in. Such words are now
+  pushed apart. This hit several percent of seeds with some word-weight
+  documents. Storms that already laid out well are unchanged.
+- A force phase that stops at `maxForceIterations` without settling now falls
+  back to the shared words' positions from before it, instead of keeping
+  wherever they had drifted. `stats.forceConverged` is false then, and the
+  command line and the site warn about it.
+
 ## 0.2.1 (2026-11-24)
 
 ### Changed

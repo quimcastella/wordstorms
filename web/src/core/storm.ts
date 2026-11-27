@@ -171,7 +171,11 @@ export interface Cloud {
 export interface StormStats {
   passes: number;
   forceIterations: number;
-  /** False if the force phase stopped at `maxForceIterations` instead of settling (always true for separate clouds). */
+  /**
+   * False if the force phase stopped at `maxForceIterations` instead of settling (always true for
+   * separate clouds). Shared words then keep their positions from before the force phase, so the
+   * storm is usable but its shared words line up less well; another seed usually settles.
+   */
   forceConverged: boolean;
   /** Factor applied to font sizes so everything fit during layout. */
   shrink: number;
@@ -501,19 +505,21 @@ function intersects(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 }
 
-/** The smallest axis-aligned move of `a` that clears `b`. */
-function minAxisPush(a: Rect, b: Rect): [number, number] {
+/**
+ * The smallest axis-aligned move of `a` that clears `b`. When the two are centered on that axis,
+ * either way is as short, and `tie` (+1 right/down, −1 left/up) picks one. Give `b`'s push off `a`
+ * the opposite `tie`: two words at the same spot would otherwise be pushed the same way, together,
+ * forever (and shove whatever they overlap ahead of them).
+ */
+function minAxisPush(a: Rect, b: Rect, tie: 1 | -1): [number, number] {
   const right = b.x + b.w - a.x;
   const left = a.x + a.w - b.x;
   const down = b.y + b.h - a.y;
   const up = a.y + a.h - b.y;
-  let min = Infinity;
-  let dir: [number, number] = [0, 0];
-  if (right < min) [min, dir] = [right, [right, 0]];
-  if (left < min) [min, dir] = [left, [-left, 0]];
-  if (down < min) [min, dir] = [down, [0, down]];
-  if (up < min) [min, dir] = [up, [0, -up]];
-  return dir;
+  if (Math.min(right, left) <= Math.min(down, up)) {
+    return [right < left || (right === left && tie > 0) ? right : -left, 0];
+  }
+  return [0, down < up || (down === up && tie > 0) ? down : -up];
 }
 
 function overlapPenalty(a: Rect, b: Rect): number {
@@ -699,7 +705,7 @@ class Layout {
           if (overEps > 0.001) {
             const r = rect(w);
             for (const o of overlaps[c].get(w) ?? []) {
-              const [dx, dy] = minAxisPush(r, rect(o));
+              const [dx, dy] = minAxisPush(r, rect(o), w.text < o.text ? 1 : -1);
               sx -= 0.1 * overEps * dx;
               sy -= 0.1 * overEps * dy;
             }
@@ -743,6 +749,8 @@ class Layout {
       [1, 0, 0.9, 0.1001],
       [10, 0, 0, 0.01],
     ];
+    // Where phase 1 left the words: overlap-free, if less well aligned. See the end.
+    const start = shared.map((ws) => ws.map((w) => ({ x: w.x, y: w.y })));
     // A first step with every force on finds the initial overlaps.
     let state = move(1, 1, 1);
     let iterations = 1;
@@ -760,6 +768,16 @@ class Layout {
         if (iterations % 200 === 0) onProgress(`Refining layout (stage ${s + 1}/${schedule.length}, step ${iterations})`);
       }
     });
+    // A phase that never settled can leave words anywhere: one word pushed 100,000 px away
+    // makes `fit` shrink the whole storm to dots. Fall back to phase 1's layout.
+    if (iterations >= this.opts.maxForceIterations) {
+      shared.forEach((ws, c) =>
+        ws.forEach((w, i) => {
+          w.x = start[c][i].x;
+          w.y = start[c][i].y;
+        }),
+      );
+    }
     return iterations;
   }
 
