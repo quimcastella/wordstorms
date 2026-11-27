@@ -4,7 +4,16 @@ import { boxMask, type Angle, type Glyph, type GlyphMeasurer, type Mask } from '
 import { PALETTES, type Palette, type PaletteName } from './palettes.ts';
 import { createRng, type Rng } from './random.ts';
 import { STOPWORDS, type StopwordLanguage } from './stopwords.ts';
-import { countWords, normalizeWeights, sortCounts, weighCounts, type Morphology, type TextCase } from './text.ts';
+import {
+  countWords,
+  keynessRatios,
+  normalizeWeights,
+  rankByKeyness,
+  sortCounts,
+  weighCounts,
+  type Morphology,
+  type TextCase,
+} from './text.ts';
 
 /** A document given as text: its words are counted with the storm's text options. */
 export interface TextDoc {
@@ -60,6 +69,14 @@ export interface StormOptions {
    * shared words to coordinate.
    */
   distinctiveness: number;
+  /**
+   * How to choose between words with the same weight, which in short documents
+   * decides most of the cloud's smaller words.
+   * `keyness` (default): first the word this document uses more than the
+   * others do, then the one that appears first in the document.
+   * `alphabetical`: a before z, as before this option existed.
+   */
+  tieBreak: 'alphabetical' | 'keyness';
   /** Font size grows with count^sizeExponent: 1 is linear (as in the original), above 1 is more dramatic, below 1 evens sizes out. */
   sizeExponent: number;
   /** Share of words drawn vertically (original: 2/7). */
@@ -99,6 +116,7 @@ export const DEFAULT_OPTIONS: StormOptions = {
   minWordLength: 2,
   weighting: 'tf',
   distinctiveness: 0.2,
+  tieBreak: 'keyness',
   sizeExponent: 1,
   verticalShare: 2 / 7,
   markShared: 'none',
@@ -242,6 +260,7 @@ export function resolveOptions(options: Partial<StormOptions> = {}): StormOption
   number('minWordLength', 1, 100, true);
   oneOf('weighting', ['tf', 'tfidf']);
   number('distinctiveness', 0, 1);
+  oneOf('tieBreak', ['alphabetical', 'keyness']);
   number('sizeExponent', 0.01, 10);
   number('verticalShare', 0, 1);
   oneOf('markShared', ['none', 'weight', 'warmth']);
@@ -385,13 +404,15 @@ export function generateStorm(
 
 /** Each document's top words, linked across clouds through a shared Entry per word. */
 function selectWords(docs: Doc[], opts: StormOptions): WordState[][] {
-  const counts = weighCounts(
-    docs.map((d) => docCounts(d, opts)),
-    opts.weighting,
-    opts.distinctiveness,
-  );
-  const top = counts.map((c) =>
-    normalizeWeights(sortCounts(c).slice(0, opts.maxWords).map(([w, n]): [string, number] => [w, n ** opts.sizeExponent])),
+  const raw = docs.map((d) => docCounts(d, opts));
+  const counts = weighCounts(raw, opts.weighting, opts.distinctiveness);
+  const keyness = opts.tieBreak === 'keyness' ? keynessRatios(weighCounts(raw, 'tf', 0)) : null;
+  const top = counts.map((c, i) =>
+    normalizeWeights(
+      (keyness ? rankByKeyness(c, keyness[i]) : sortCounts(c))
+        .slice(0, opts.maxWords)
+        .map(([w, n]): [string, number] => [w, n ** opts.sizeExponent]),
+    ),
   );
 
   const entries = new Map<string, Entry>();

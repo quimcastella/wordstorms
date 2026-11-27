@@ -4,6 +4,20 @@ Changes to the `wordstorms` npm package: the command line and the library.
 
 ## Unreleased
 
+### Changed
+
+- **Ties between equally used words go to the more distinctive one.** In short
+  texts most words are used once, and they used to be kept alphabetically, so
+  clouds filled up with words like "abundantly" and "acknowledged". Now the
+  word this document uses more than the others wins, then the one that comes
+  first in the text. Layouts made with the same seed change. Set
+  `tieBreak: 'alphabetical'` (or `--tie-break alphabetical`) for the old order.
+
+### Added
+
+- `tieBreak` option (`keyness` or `alphabetical`) and `--tie-break` on the
+  command line.
+
 ### Fixed
 
 - Some storms came out as specks: every word a fraction of a pixel tall, in a

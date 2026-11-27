@@ -243,8 +243,31 @@ describe('resolveOptions', () => {
     [{ stopwords: 'klingon' }, /stopwords/],
     [{ extraStopwords: 'the' }, /extraStopwords/],
     [{ maxIterations: 0 }, /maxIterations/],
+    [{ tieBreak: 'random' }, /tieBreak/],
   ])('rejects %j', (bad, message) => {
     expect(() => resolveOptions(bad as never)).toThrow(message);
+  });
+});
+
+describe('tieBreak', () => {
+  // Every word is used once, so the cut at maxWords falls among ties.
+  const tied = [
+    { name: 'a', text: 'zebra yak apple shared' },
+    { name: 'b', text: 'shared other words here' },
+  ];
+  const first = (tieBreak: 'alphabetical' | 'keyness') =>
+    generateStorm(tied, { maxWords: 2, distinctiveness: 0, tieBreak }, measurer()).clouds[0].words.map((w) => w.text).sort();
+
+  it('defaults to keyness', () => {
+    expect(DEFAULT_OPTIONS.tieBreak).toBe('keyness');
+  });
+
+  it('with alphabetical, takes a before z', () => {
+    expect(first('alphabetical')).toEqual(['apple', 'shared']);
+  });
+
+  it('with keyness, prefers words only this document uses, in the order they appear', () => {
+    expect(first('keyness')).toEqual(['yak', 'zebra']);
   });
 });
 

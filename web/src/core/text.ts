@@ -90,6 +90,20 @@ export function sortCounts(counts: Map<string, number>): [string, number][] {
   return [...counts].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
 }
 
+/**
+ * Sorted by weight descending; ties go to the word this document uses more than
+ * the others (higher `keyness`), then to the word that comes first in `weights`
+ * (for counted text, the one that appears first in the document).
+ */
+export function rankByKeyness(weights: Map<string, number>, keyness: Map<string, number>): [string, number][] {
+  return [...weights].sort((a, b) => b[1] - a[1] || (keyness.get(b[0]) ?? 0) - (keyness.get(a[0]) ?? 0));
+}
+
+/** Each word's keyness ratio per document: its rate in the document over its rate in the corpus. */
+export function keynessRatios(docs: Map<string, number>[]): Map<string, number>[] {
+  return applyKeyness(docs, 1).map((keyed, i) => new Map([...keyed].map(([w, k]) => [w, k / docs[i].get(w)!])));
+}
+
 /** idf = ln(D/df)/ln(D) per word, with df over full vocabularies: 0 for a word in every document. */
 export function inverseDocumentFrequency(docs: Map<string, number>[]): Map<string, number> {
   const D = docs.length;
