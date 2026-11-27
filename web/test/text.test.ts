@@ -3,8 +3,10 @@ import {
   applyKeyness,
   applyTfIdf,
   countWords,
+  keynessRatios,
   mergePlurals,
   normalizeWeights,
+  rankByKeyness,
   sortCounts,
   tokenize,
   weighCounts,
@@ -55,6 +57,23 @@ describe('mergePlurals', () => {
 describe('sortCounts', () => {
   it('sorts by count, then alphabetically', () => {
     expect(sortCounts(new Map([['b', 1], ['c', 2], ['a', 1]]))).toEqual([['c', 2], ['a', 1], ['b', 1]]);
+  });
+});
+
+describe('rankByKeyness', () => {
+  it('sorts by weight, then keyness, then original order', () => {
+    const weights = new Map([['b', 1], ['c', 2], ['a', 1], ['d', 1]]);
+    const keyness = new Map([['b', 1], ['c', 1], ['a', 1], ['d', 3]]);
+    expect(rankByKeyness(weights, keyness).map(([w]) => w)).toEqual(['c', 'd', 'b', 'a']);
+  });
+});
+
+describe('keynessRatios', () => {
+  it('is above 1 for words a document uses more than the corpus does', () => {
+    const [a, b] = keynessRatios([new Map([['x', 3], ['y', 1]]), new Map([['y', 4]])]);
+    expect(a.get('x')).toBeGreaterThan(1);
+    expect(a.get('y')).toBeLessThan(1);
+    expect(b.get('y')).toBeGreaterThan(1);
   });
 });
 
