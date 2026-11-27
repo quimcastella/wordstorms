@@ -183,7 +183,7 @@ throws on an invalid value:
 | Kind | Options |
 |---|---|
 | Basic | `maxWords` (35), `width` × `height` (640×480), `seed`, `mode` (`coordinated` or `independent`) |
-| Words | `stopwords`, `morphology` and `minWordLength` (or one of `LANGUAGES`), `extraStopwords`, `excludeNumbers`, `textCase`, `weighting` (`tf` or `tfidf`), `distinctiveness` |
+| Words | `stopwords`, `morphology` and `minWordLength` (or one of `LANGUAGES`), `extraStopwords`, `excludeNumbers`, `textCase`, `weighting` (`tf` or `tfidf`), `distinctiveness`, `tieBreak` (`keyness` or `alphabetical`) |
 | Look | `palette`, `markShared`, `fadeCommonWords`, `verticalShare`, `sizeExponent`, `minFontSize` and `maxFontSize` |
 | Layout | `tolerance`, `maxIterations`, `maxForceIterations` |
 

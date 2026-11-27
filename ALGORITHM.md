@@ -71,7 +71,13 @@ stop words, no morphology and a minimum length of 1.
    multiply. Words left at 0 (with tf-idf, those in every document) are
    dropped rather than kept as filler, so a cloud can have fewer than
    `maxWords` words, or none if every word it has is in every document.
-9. Sort by count (ties alphabetically) and keep the top `maxWords`.
+9. Sort by count and keep the top `maxWords`. In short documents most words
+   are used once or twice, so how ties are broken decides most of the cloud.
+   With `tieBreak: "keyness"` (default), the tied word with the higher
+   `rate_doc(w) / rate_all(w)` from step 8 comes first, computed from the
+   counts of step 6 whatever `distinctiveness` is; words still tied keep the
+   order they first appear in the document (for word weights, the order
+   given). With `tieBreak: "alphabetical"`, ties go a before z.
 10. **Size contrast** (`sizeExponent` = e, default 1): raise each count to the
     power e. Above 1 widens the gap between the top word and the rest, below
     1 narrows it.

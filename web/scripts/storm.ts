@@ -29,6 +29,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 // `npm run` starts scripts in web/; INIT_CWD is where the user ran it from.
 const cwd = process.env.INIT_CWD ?? process.cwd();
 const MARKS = ['none', 'weight', 'warmth'] as const;
+const TIE_BREAKS = ['keyness', 'alphabetical'] as const;
 
 const HELP = `Make a word storm from text files: one cloud per file.
 
@@ -49,6 +50,8 @@ Options:
       --scale <n>        PNG pixels per layout pixel, 0.25–8 (default: 2)
   -w, --words <n>        Words per cloud (default: ${DEFAULT_OPTIONS.maxWords})
   -d, --distinct <n>     Favor words a document uses more than the others, 0–100 (default: ${DEFAULT_OPTIONS.distinctiveness * 100})
+      --tie-break <how>  Which of two equally used words to keep: keyness (the one this file uses more
+                         than the others, then the first to appear) or alphabetical (default: ${DEFAULT_OPTIONS.tieBreak})
       --contrast <n>     Size differences, 0.1–3: 1 is the original scale, higher is more dramatic (default: 1)
       --vertical <0-1>   Share of vertical words (default: 0.29)
       --mark <how>       Set shared words apart: ${MARKS.join(', ')} (default: none)
@@ -91,6 +94,7 @@ const { values: args, positionals } = attempt(() => parseArgs({
     scale: { type: 'string' },
     words: { type: 'string', short: 'w' },
     distinct: { type: 'string', short: 'd' },
+    'tie-break': { type: 'string' },
     contrast: { type: 'string' },
     vertical: { type: 'string' },
     mark: { type: 'string' },
@@ -173,6 +177,9 @@ const formats = (args.format ?? 'svg,png,html').split(',').map((f) => f.trim().t
 for (const f of formats) if (!FORMATS.includes(f)) fail(`Unknown format "${f}". Use any of ${FORMATS.join(', ')}.`);
 
 if (args.palette && !(args.palette in PALETTES)) fail(`Unknown palette "${args.palette}". Pick one of: ${Object.keys(PALETTES).join(', ')}.`);
+if (args['tie-break'] && !(TIE_BREAKS as readonly string[]).includes(args['tie-break'])) {
+  fail(`--tie-break must be one of: ${TIE_BREAKS.join(', ')}.`);
+}
 if (args.mark && !(MARKS as readonly string[]).includes(args.mark)) fail(`--mark must be one of: ${MARKS.join(', ')}.`);
 if (args.language && !(args.language in LANGUAGES)) {
   fail(`Unknown language "${args.language}". Pick one of: ${Object.keys(LANGUAGES).join(', ')}.`);
@@ -198,6 +205,7 @@ const given: Partial<StormOptions> = {
   mode: args.separate ? 'independent' : undefined,
   maxWords: number('words', args.words, 1, 500, true),
   distinctiveness: args.distinct === undefined ? undefined : number('distinct', args.distinct, 0, 100)! / 100,
+  tieBreak: args['tie-break'] as StormOptions['tieBreak'] | undefined,
   sizeExponent: number('contrast', args.contrast, 0.1, 3),
   verticalShare: number('vertical', args.vertical, 0, 1),
   markShared: args.mark as StormOptions['markShared'] | undefined,
