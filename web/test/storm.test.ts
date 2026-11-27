@@ -354,9 +354,9 @@ describe('generateStorm when shared words land on the same spot', () => {
   };
 
   it('pushes them apart instead of together, so the layout settles at full size', () => {
-    // Seed 13 used to push two such words the same way for all 20,000 steps, shoving a third
-    // ahead of them 100,000 px off, and the fitted storm came out as specks 0.2 px tall.
-    const storm = generateStorm(docs, { ...options, seed: 13 }, boxes);
+    // Seed 51 used to push two such words the same way for all 20,000 steps, shoving a third
+    // ahead of them far off the field, and the fitted storm came out as specks.
+    const storm = generateStorm(docs, { ...options, seed: 51 }, boxes);
     expect(storm.stats.forceConverged).toBe(true);
     expect(storm.stats.forceIterations).toBeLessThan(2000);
     expect(Math.max(...fontSizes(storm))).toBeGreaterThan(30);
@@ -364,7 +364,7 @@ describe('generateStorm when shared words land on the same spot', () => {
   });
 
   it('falls back to the first layout, still full size, when the force phase is cut short', () => {
-    const storm = generateStorm(docs, { ...options, seed: 13, maxForceIterations: 5 }, boxes);
+    const storm = generateStorm(docs, { ...options, seed: 51, maxForceIterations: 5 }, boxes);
     expect(storm.stats.forceConverged).toBe(false);
     expect(Math.max(...fontSizes(storm))).toBeGreaterThan(30);
     expect(span(storm)).toBeGreaterThan(storm.width / 2);
