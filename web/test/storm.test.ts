@@ -2,6 +2,7 @@ import { createCanvas } from '@napi-rs/canvas';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { boxMask, type GlyphMeasurer } from '../src/core/glyph.ts';
 import { PALETTES } from '../src/core/palettes.ts';
 import { DEFAULT_OPTIONS, generateStorm, resolveOptions, type Storm } from '../src/core/storm.ts';
 import { createCanvasMeasurer } from '../src/measure/canvas.ts';
@@ -301,5 +302,49 @@ describe('generateStorm with word counts', () => {
     expect(() => generateStorm([{ name: 'n', words: { x: -1 } }], {}, measurer())).toThrow(/weight of "x"/);
     expect(() => generateStorm([{ name: 's', words: { x: '3' } } as never], {}, measurer())).toThrow(/weight of "x"/);
     expect(() => generateStorm([{ name: 'both', text: 'a', words: {} } as never], {}, measurer())).toThrow(/both/);
+  });
+});
+
+describe('generateStorm when shared words land on the same spot', () => {
+  // Boxes instead of a font, so the layout is the same on every machine: words of equal length and
+  // size get equal boxes, which is what lets two of them end up stacked exactly on one another.
+  const boxes: GlyphMeasurer = {
+    measure(text, fontSize) {
+      const w = Math.max(1, Math.round(text.length * fontSize * 0.6));
+      const h = Math.max(1, Math.round(fontSize * 0.75));
+      return { width: w, height: h, originX: 0, originY: h, mask: boxMask(w, h, 1) };
+    },
+  };
+  const vocab = ['salt', 'rice', 'milk', 'lime', 'corn', 'beef', 'pork', 'fish', 'soy', 'egg', 'oil', 'tofu', 'mint', 'dill',
+    'leek', 'kale', 'okra', 'yam', 'bean', 'date', 'fig', 'plum', 'pear', 'chili', 'onion', 'garlic', 'ginger', 'tomato',
+    'pepper', 'sugar', 'butter', 'cumin', 'basil', 'lemon', 'honey', 'flour', 'cream', 'cheese', 'olive', 'carrot'];
+  const docs = [0, 1, 2, 3].map((d) => ({
+    name: `d${d}`,
+    words: Object.fromEntries(vocab.map((w, i) => [w, 1 + ((i * 7 + d * 13) % 17) + (i < 10 ? 20 : 0)])),
+  }));
+  const options = { maxWords: 30, distinctiveness: 0.6, verticalShare: 0, width: 560, height: 480, tolerance: 100 };
+
+  const fontSizes = (storm: Storm) => storm.clouds.flatMap((c) => c.words.map((w) => w.fontSize));
+  const span = (storm: Storm) => {
+    const xs = storm.clouds.flatMap((c) => c.words.flatMap((w) => [w.x, w.x + w.width]));
+    return Math.max(...xs) - Math.min(...xs);
+  };
+
+  it('pushes them apart instead of together, so the layout settles at full size', () => {
+    // Seed 13 used to push two such words the same way for all 20,000 steps, shoving a third
+    // ahead of them 100,000 px off, and the fitted storm came out as specks 0.2 px tall.
+    const storm = generateStorm(docs, { ...options, seed: 13 }, boxes);
+    expect(storm.stats.forceConverged).toBe(true);
+    expect(storm.stats.forceIterations).toBeLessThan(2000);
+    expect(Math.max(...fontSizes(storm))).toBeGreaterThan(30);
+    expect(span(storm)).toBeGreaterThan(storm.width / 2);
+  });
+
+  it('falls back to the first layout, still full size, when the force phase is cut short', () => {
+    const storm = generateStorm(docs, { ...options, seed: 13, maxForceIterations: 5 }, boxes);
+    expect(storm.stats.forceConverged).toBe(false);
+    expect(Math.max(...fontSizes(storm))).toBeGreaterThan(30);
+    expect(span(storm)).toBeGreaterThan(storm.width / 2);
+    expect(storm.stats.overlap.pairs).toBe(0);
   });
 });

@@ -276,5 +276,8 @@ console.log(
     `${skipped ? `, ${skipped} words didn't fit` : ''}, ` +
     `in ${((performance.now() - started) / 1000).toFixed(1)} s`,
 );
+if (!storm.stats.forceConverged) {
+  console.warn(`The layout didn't settle in ${storm.stats.forceIterations} steps, so shared words line up less well. Try another --seed.`);
+}
 console.log(`Wrote ${written.length} ${written.length === 1 ? 'file' : 'files'} to ${out}`);
 if (written.includes('index.html')) console.log(`Open ${join(out, 'index.html')} to compare the clouds.`);

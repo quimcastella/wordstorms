@@ -531,6 +531,7 @@ function summary(s: Storm, ms: number): string {
     `built in ${(ms / 1000).toFixed(1)} s`,
   ];
   if (skipped) parts.push(`${skipped} word${skipped === 1 ? '' : 's'} didn’t fit`);
+  if (!s.stats.forceConverged) parts.push('the layout didn’t settle, so shared words line up less well: try another layout number');
   if (s.clouds.length === 1) parts.push('add more documents to compare them');
   return parts.join(' · ');
 }

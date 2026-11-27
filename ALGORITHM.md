@@ -165,7 +165,9 @@ Each iteration moves every shared word, in every cloud, by `−step`, where
   word toward its position in similar clouds.
 - **Overlap**, weight `overEps`: for every word it overlaps (as boxes) in this
   cloud, add the shortest left, right, up or down push that separates them,
-  times `0.1 · overEps`.
+  times `0.1 · overEps`. When the two are centered on that axis, both ways are
+  as short; the word whose text sorts first goes right or down, the other left
+  or up, so they always move apart.
 - **Compactness**, weight `compEps`: the vector from the field's center to the
   word, normalized if longer than 1, times `0.1 · compEps`.
 
@@ -201,7 +203,9 @@ Then the force phase runs through these stages in order:
 runs at least once. The last also ends when the largest single overlap
 penalty, `(smallest overlap depth + 1)²`, is below 10, which is checked before
 its first iteration too. The whole phase stops after `maxForceIterations`
-(default 20,000) iterations at most.
+(default 20,000) iterations at most. A phase stopped there hasn't settled and
+can leave words anywhere, so the shared words go back to where 4a placed them,
+and `stats.forceConverged` is false.
 
 ### 4c. Unique words
 
@@ -240,7 +244,8 @@ spot across clouds.
   shared words in one cloud whose boxes still intersect, and `maxDepth` is the
   deepest such overlap, in px. On the examples it stays under 1 px.
 - `forceConverged`: false if 4b stopped at `maxForceIterations` rather than
-  settling.
+  settling. The shared words then keep their 4a positions: the storm is full
+  size but lines up less well. The command line and the site say so.
 
 ## Randomness
 
